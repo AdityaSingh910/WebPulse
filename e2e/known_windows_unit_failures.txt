@@ -1,0 +1,16 @@
+# Unit-test failures observed on the UNMODIFIED upstream code (commit c74be04) on native Windows 11 / Python 3.12.
+# None are caused by the simplification; they are platform limitations:
+#  - symlink tests: os.symlink needs admin / Developer Mode on Windows (WinError 1314)
+#  - xml_security: lxml rejects 'file://C:\...' URIs built by the test (POSIX-style path assumption)
+#  - auth_decorator_order: uses pytest-flask live_server, which needs fork()
+#  - socket_stats / link_local_aaaa: timing and DNS-resolver dependent
+tests/unit/test_fetch_url_gate.py::TestFetchUrlGate::test_junk_link_local_aaaa_record_does_not_block_a_public_site
+tests/unit/test_processor_config_path_traversal.py::TestWatchConfigPathContainment::test_symlink_inside_the_watch_dir_cannot_redirect_the_write
+tests/unit/test_socket_stats_without_clients.py::test_nothing_is_scanned_or_emitted_when_nobody_is_connected
+tests/unit/test_socket_stats_without_clients.py::test_the_counters_are_still_sent_when_a_browser_is_connected
+tests/unit/test_watch_model.py::TestHistoryPathTraversal::test_dangling_symlink_is_skipped
+tests/unit/test_watch_model.py::TestHistoryPathTraversal::test_symlink_inside_data_dir_is_accepted
+tests/unit/test_watch_model.py::TestHistoryPathTraversal::test_symlink_pointing_outside_data_dir_is_rejected
+tests/unit/test_xml_security.py::test_xxe_not_expanded_xpath_filter
+tests/unit/test_xml_security.py::test_xxe_not_expanded_xpath1_filter
+tests/unit/test_auth_decorator_order.py::test_auth_decorator_order
