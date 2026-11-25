@@ -217,7 +217,7 @@ def _available_processors_cached(locale_str):
     processor_classes = find_processors()
 
     # Check if DISABLED_PROCESSORS env var is set
-    disabled_processors_env = os.getenv('DISABLED_PROCESSORS', 'image_ssim_diff').strip()
+    disabled_processors_env = os.getenv('DISABLED_PROCESSORS', '').strip()
     disabled_processors = []
     if disabled_processors_env:
         # Parse comma-separated list and strip whitespace

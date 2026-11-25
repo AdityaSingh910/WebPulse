@@ -15,7 +15,6 @@ from changedetectionio.auth_decorator import login_optionally_required
 from changedetectionio.blueprint.watchlist import filters as wl_filters
 from changedetectionio.blueprint.watchlist.row_context import watch_row_context
 # The manifest points share_target at this page, so an Android share lands in index()
-from changedetectionio.blueprint.pwa.service import is_share, pwa_preset_url
 
 def construct_blueprint(datastore: ChangeDetectionStore, update_q, queuedWatchMetaData):
     watchlist_blueprint = Blueprint('watchlist', __name__, template_folder="templates")
@@ -101,15 +100,6 @@ def construct_blueprint(datastore: ChangeDetectionStore, update_q, queuedWatchMe
 
         form = forms.quickWatchForm(request.form)
 
-        # A share from the Android share sheet lands here (see pwa_preset_url). Prefill only -
-        # the operator still picks a mode and presses Watch.
-        if not form.url.data and is_share(request.args):
-            form.url.data = pwa_preset_url(request.args)
-            if not form.url.data:
-                # Sharing a photo, or a note with no link in it, otherwise just opens an
-                # ordinary-looking empty page and leaves the user wondering. Gated on
-                # is_share so tapping the home screen icon (same URL, no params) says nothing.
-                flash(_('Nothing shareable was found - no web page link in what you shared.'), 'notice')
 
         page = request.args.get(get_page_parameter(), type=int, default=1)
         total_count = len(sorted_watches)

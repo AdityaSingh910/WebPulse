@@ -51,7 +51,6 @@ class model(dict):
                     'history_snapshot_max_length': None,
                     'ignore_whitespace': True,
                     'ignore_status_codes': False, #@todo implement, as ternary.
-                    'ssim_threshold': '0.96',  # Default SSIM threshold for screenshot comparison
                     'notification_body': default_notification_body,
                     'notification_format': default_notification_format,
                     'notification_title': default_notification_title,
