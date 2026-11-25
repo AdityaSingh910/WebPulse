@@ -1,3 +1,4 @@
+# Modified 2026 for the simplified (academic) fork of changedetection.io - optional features removed, see CHANGES.md
 from ..base import difference_detection_processor
 from ..exceptions import ProcessorException
 from . import Restock

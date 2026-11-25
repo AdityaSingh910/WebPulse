@@ -1,3 +1,4 @@
+// Modified 2026 for the simplified (academic) fork of changedetection.io - optional features removed, see CHANGES.md
 // Attach the CSRF token to every state-changing jQuery request.
 //
 // Applied at script-execution time, NOT inside $(document).ready(). That matters: pages carry

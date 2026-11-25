@@ -1,3 +1,4 @@
+# Modified 2026 for the simplified (academic) fork of changedetection.io - optional features removed, see CHANGES.md
 """
 Tag/Group domain model for organizing and overriding watch settings.
 

@@ -1,3 +1,4 @@
+# Modified 2026 for the simplified (academic) fork of changedetection.io - optional features removed, see CHANGES.md
 import os
 
 from flask import Blueprint, render_template, request, jsonify, make_response, flash, redirect, url_for

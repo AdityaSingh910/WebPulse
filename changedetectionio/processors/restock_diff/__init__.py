@@ -1,3 +1,4 @@
+# Modified 2026 for the simplified (academic) fork of changedetection.io - optional features removed, see CHANGES.md
 
 from babel.numbers import parse_decimal
 from changedetectionio.model.Watch import model as BaseWatch

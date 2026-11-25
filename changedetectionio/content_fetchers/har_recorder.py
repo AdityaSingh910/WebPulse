@@ -1,3 +1,4 @@
+# Modified 2026 for the simplified (academic) fork of changedetection.io - optional features removed, see CHANGES.md
 """Record the network traffic of one browser fetch as a HAR 1.2 file.
 
 Diagnostic aid for "why does this site block/behave differently for the browser" (#4539).

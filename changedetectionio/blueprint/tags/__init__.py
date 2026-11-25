@@ -1,3 +1,4 @@
+# Modified 2026 for the simplified (academic) fork of changedetection.io - optional features removed, see CHANGES.md
 import threading
 from flask import Blueprint, request, render_template, flash, url_for, redirect
 from flask_babel import gettext

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Modified 2026 for the simplified (academic) fork of changedetection.io - optional features removed, see CHANGES.md
 
 # run from dir above changedetectionio/ dir
 # python3 -m unittest changedetectionio.tests.unit.test_notification_diff

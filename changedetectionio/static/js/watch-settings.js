@@ -1,3 +1,4 @@
+// Modified 2026 for the simplified (academic) fork of changedetection.io - optional features removed, see CHANGES.md
 
 function request_textpreview_update() {
     if (!$('body').hasClass('preview-text-enabled')) {

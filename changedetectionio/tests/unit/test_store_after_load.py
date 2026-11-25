@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Modified 2026 for the simplified (academic) fork of changedetection.io - optional features removed, see CHANGES.md
 """Startup housekeeping runs for every datastore, not only brand-new installs: missing app_guid / RSS / API
 tokens are created, removepassword.lock removes the password, version_tag is the running version.
 

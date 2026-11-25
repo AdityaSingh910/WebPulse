@@ -1,3 +1,4 @@
+// Modified 2026 for the simplified (academic) fork of changedetection.io - optional features removed, see CHANGES.md
 // Click to copy: hovering shows "copy" and a copy icon, clicking copies the element's text and shows "copied". Any
 // element with class "click-to-copy"; the labels come from data-copy-label / data-copied-label so they're translated.
 // The hint is positioned over its box (top right of a code block, just right of an inline value), never in the page

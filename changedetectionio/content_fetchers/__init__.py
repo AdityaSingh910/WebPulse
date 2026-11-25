@@ -1,3 +1,4 @@
+# Modified 2026 for the simplified (academic) fork of changedetection.io - optional features removed, see CHANGES.md
 import sys
 from changedetectionio.strtobool import strtobool
 from loguru import logger

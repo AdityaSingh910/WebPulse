@@ -1,3 +1,4 @@
+# Modified 2026 for the simplified (academic) fork of changedetection.io - optional features removed, see CHANGES.md
 feedparser~=6.0  # For parsing RSS/Atom feeds
 flask-compress
 flask-login>=0.6.3

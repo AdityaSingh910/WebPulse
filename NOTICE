@@ -15,3 +15,24 @@ dependency offers a choice of licence, we use it under:
 
   feedgen    - BSD          (offered as BSD or LGPLv3+)
   paho-mqtt  - BSD-3-Clause (offered as EPL-2.0 or BSD-3-Clause)
+
+--------------------------------------------------------------------------------
+Addendum - simplified fork (2026)
+--------------------------------------------------------------------------------
+This repository is a modified, simplified version of changedetection.io, made by
+AdityaSingh910 for an academic (final-year engineering) project. It is based on
+upstream commit c74be04 (version 0.70.4, tagged upstream-baseline-c74be04 here).
+
+Optional features were removed (LLM/AI integrations, MCP server, screenshot
+comparison, PWA, RSS output feeds, proxy checker, Selenium and Puppeteer
+fetchers, example plugins, non-English translations, Docker/CI files). Modified
+files carry a notice at the top; CHANGES.md lists every change. The text above
+this addendum is the upstream NOTICE, unchanged.
+
+The modifications are also licensed under the Apache License, Version 2.0.
+The changedetection.io name and logo remain the upstream project's brand assets
+(see above) and are not licensed by this fork either.
+
+Dependencies added by this fork:
+  playwright - Apache-2.0
+  pillow     - MIT-CMU (HPND)

@@ -1,3 +1,4 @@
+// Modified 2026 for the simplified (academic) fork of changedetection.io - optional features removed, see CHANGES.md
 $(document).ready(function () {
     // The API key's click to copy is click-to-copy.js
 

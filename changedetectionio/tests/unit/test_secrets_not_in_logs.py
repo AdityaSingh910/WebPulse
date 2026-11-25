@@ -1,3 +1,4 @@
+# Modified 2026 for the simplified (academic) fork of changedetection.io - optional features removed, see CHANGES.md
 """Passwords and access tokens stay out of the log output.
 
 Notification URLs carry their own credentials and the browser connection URL carries the access

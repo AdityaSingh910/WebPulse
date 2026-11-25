@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Modified 2026 for the simplified (academic) fork of changedetection.io - optional features removed, see CHANGES.md
 from operator import truediv
 
 from flask import make_response, request, current_app

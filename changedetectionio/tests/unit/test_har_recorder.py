@@ -1,3 +1,4 @@
+# Modified 2026 for the simplified (academic) fork of changedetection.io - optional features removed, see CHANGES.md
 """HAR recording of a fetch (HAR_UUID_RECORD). (The CDP-event HarRecorder was only used by the removed Puppeteer fetcher.)"""
 
 import asyncio

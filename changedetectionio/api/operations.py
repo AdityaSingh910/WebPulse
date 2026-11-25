@@ -1,3 +1,4 @@
+# Modified 2026 for the simplified (academic) fork of changedetection.io - optional features removed, see CHANGES.md
 """
 Watch and tag operations used by the REST API (originally shared with the MCP server), so they validate the same way and give the
 same answers. Each raises ApiError(message, status) with the REST API's message and HTTP status.
