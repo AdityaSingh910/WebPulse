@@ -381,8 +381,6 @@ def construct_blueprint(datastore: ChangeDetectionStore, update_q, queuedWatchMe
             capabilities['supports_text_filters_and_triggers_elements'] = getattr(parent_module, 'supports_text_filters_and_triggers_elements', False)
             capabilities['supports_request_type'] = getattr(parent_module, 'supports_request_type', False)
 
-            app_rss_token = datastore.data['settings']['application'].get('rss_access_token'),
-
             c = [f"processor-{watch.get('processor')}"]
             if worker_pool.is_watch_running(uuid):
                 c.append('checking-now')
@@ -402,11 +400,6 @@ def construct_blueprint(datastore: ChangeDetectionStore, update_q, queuedWatchMe
                 'has_special_tag_options': _watch_has_tag_options_set(watch=watch),
                 'jq_support': jq_support,
                 'playwright_enabled': os.getenv('PLAYWRIGHT_DRIVER_URL', False),
-                'app_rss_token': app_rss_token,
-                'rss_uuid_feed' : {
-                    'label': watch.label,
-                    'url': url_for('rss.rss_single_watch', uuid=watch['uuid'], token=app_rss_token)
-                },
                 'settings_application': datastore.data['settings']['application'],
                 'ui_edit_stats_extras': collect_ui_edit_stats_extras(watch),
                 'visual_selector_data_ready': datastore.visualselector_data_is_ready(watch_uuid=uuid),

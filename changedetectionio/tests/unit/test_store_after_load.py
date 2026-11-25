@@ -18,13 +18,14 @@ def test_existing_datastore_gets_startup_housekeeping(tmp_path):
     # A fresh install gets everything
     ds = _store(tmp_path)
     app = ds.data['settings']['application']
-    assert app.get('rss_access_token') and app.get('api_access_token') and ds.data.get('app_guid')
+    # (simplified fork: RSS feeds were removed, so no RSS token is generated any more)
+    assert app.get('api_access_token') and ds.data.get('app_guid') and not app.get('rss_access_token')
 
     # An older datastore on disk: no tokens, a password set, and the reset lockfile dropped in
     settings_file = os.path.join(tmp_path, 'changedetection.json')
     with open(settings_file) as f:
         saved = json.load(f)
-    for key in ('rss_access_token', 'api_access_token'):
+    for key in ('api_access_token',):
         saved['settings']['application'].pop(key, None)
     saved['settings']['application']['password'] = 'some-hashed-password'
     with open(settings_file, 'w') as f:
@@ -33,17 +34,16 @@ def test_existing_datastore_gets_startup_housekeeping(tmp_path):
 
     ds = _store(tmp_path, version='2.0.0')
     app = ds.data['settings']['application']
-    assert app.get('rss_access_token'), "missing RSS token is created on load"
     assert app.get('api_access_token'), "missing API token is created on load"
     assert not app.get('password'), "removepassword.lock removes the password"
     assert not os.path.exists(os.path.join(tmp_path, 'removepassword.lock'))
     assert ds.data.get('version_tag') == '2.0.0'
 
     # and it sticks: the next startup keeps the same tokens
-    tokens = (app['rss_access_token'], app['api_access_token'])
+    tokens = (app['api_access_token'],)
     ds = _store(tmp_path, version='2.0.0')
     app = ds.data['settings']['application']
-    assert (app['rss_access_token'], app['api_access_token']) == tokens
+    assert (app['api_access_token'],) == tokens
 
 
 def test_removepassword_lockfile_removes_password(tmp_path):

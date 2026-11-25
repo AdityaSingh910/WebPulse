@@ -5,7 +5,6 @@ from wtforms.widgets.core import TimeInput
 from flask_babel import gettext, lazy_gettext as _l, lazy_pgettext
 
 from changedetectionio.blueprint.menu_modes import MENU_SIDEBAR_ACTIONMODES, MENU_SIDEBAR_ACTIONMODES_DEFAULT
-from changedetectionio.blueprint.rss import RSS_FORMAT_TYPES, RSS_TEMPLATE_TYPE_OPTIONS, RSS_TEMPLATE_HTML_DEFAULT
 from changedetectionio.llm.ui_strings import LLM_INTENT_WATCH_PLACEHOLDER
 from changedetectionio.llm.evaluator import (
     DEFAULT_CHANGE_SUMMARY_PROMPT,
@@ -1189,21 +1188,11 @@ class globalSettingsApplicationForm(commonSettingsForm):
                               validators=[validators.NumberRange(min=0,
                                                                  message=_l("Should be atleast zero (disabled)"))])
 
-    rss_content_format = SelectField(_l('RSS Content format'), choices=list(RSS_FORMAT_TYPES.items()))
-    rss_template_type = SelectField(_l('RSS <description> body built from'), choices=list(RSS_TEMPLATE_TYPE_OPTIONS.items()))
-    rss_template_override = TextAreaField(_l('RSS "System default" template override'), render_kw={"rows": "5", "placeholder": RSS_TEMPLATE_HTML_DEFAULT}, validators=[validators.Optional(), ValidateJinja2Template()])
-
     removepassword_button = SubmitField(_l('Remove password'), render_kw={"class": "pure-button pure-button-primary"})
     render_anchor_tag_content = BooleanField(_l('Render anchor tag content'), default=False)
     shared_diff_access = BooleanField(_l('Allow anonymous access to watch history page when password is enabled'), default=False, validators=[validators.Optional()])
     strip_ignored_lines = BooleanField(_l('Strip ignored lines'))
-    rss_hide_muted_watches = BooleanField(_l('Hide muted watches from RSS feed'), default=True,
-                                      validators=[validators.Optional()])
-
     rss_reader_mode = BooleanField(_l('Enable RSS reader mode '), default=False, validators=[validators.Optional()])
-    rss_diff_length = IntegerField(label=_l('Number of changes to show in watch RSS feed'),
-                                   render_kw={"style": "width: 5em;"},
-                                   validators=[validators.NumberRange(min=0, message=_l("Should contain zero or more attempts"))])
 
     filter_failure_notification_threshold_attempts = IntegerField(_l('Number of times the filter can be missing before sending a notification'),
                                                                   render_kw={"style": "width: 5em;"},

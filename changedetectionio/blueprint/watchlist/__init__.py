@@ -54,10 +54,6 @@ def construct_blueprint(datastore: ChangeDetectionStore, update_q, queuedWatchMe
                     active_tag_uuid = uuid
                     break
 
-        # Redirect for the old rss path which used the /?rss=true
-        if request.args.get('rss'):
-            return redirect(url_for('rss.feed', tag=active_tag_uuid))
-
         # Sort by last_changed and add the uuid which is usually the key..
         sorted_watches = []
         active_processor = request.args.get('processor', '').strip()
@@ -132,7 +128,6 @@ def construct_blueprint(datastore: ChangeDetectionStore, update_q, queuedWatchMe
             active_tag=active_tag,
             active_processor=active_processor,
             checking_now_size=len(worker_pool.get_running_uuids()),
-            app_rss_token=datastore.data['settings']['application'].get('rss_access_token'),
             errored_count=errored_count,
             healthy_count=healthy_count,
             deals_count=deals_count,

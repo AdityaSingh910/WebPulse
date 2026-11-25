@@ -100,7 +100,6 @@ html[data-darkmode="true"] .watch-tag-list.tag-{{ class_name }} {
                        data-confirm-message="{{ _('<p>Are you sure you want to unlink all watches from group <strong>%(title)s</strong>?</p><p>The tag will be kept but watches will be removed from it.</p>', title=tag.title) }}"
                        data-confirm-button="{{ _('Unlink') }}"
                        title="{{ _('Keep the tag but unlink any watches') }}">{{ _('Unlink') }}</a>
-                    <a href="{{ url_for('rss.rss_tag_feed', tag_uuid=uuid, token=app_rss_token)}}"><img alt="{{ _('RSS Feed for this watch') }}" style="padding-left: 1em;" src="{{url_for('static_content', group='images', filename='generic_feed-icon.svg')}}" height="15"></a>
                 </td>
             </tr>
             {% endfor %}

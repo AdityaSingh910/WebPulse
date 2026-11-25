@@ -2,7 +2,7 @@
 
 import time
 from flask import url_for
-from .util import live_server_setup, wait_for_all_checks, extract_rss_token_from_UI, get_UUID_for_tag_name, extract_UUID_from_client, delete_all_watches
+from .util import live_server_setup, wait_for_all_checks, get_UUID_for_tag_name, extract_UUID_from_client, delete_all_watches
 import os
 
 from ..store import ChangeDetectionStore
@@ -109,26 +109,6 @@ def test_setup_group_tag(client, live_server, measure_memory_usage, datastore_pa
     # 2307 the UI notice should appear in the placeholder
     assert b'WARNING: Watch has tag/groups set with special filters' in res.data
 
-    # RSS Group tag filter
-    # An extra one that should be excluded
-    res = client.post(
-        url_for("imports.import_page"),
-        data={"urls": test_url + "?should-be-excluded=1 some-tag"},
-        follow_redirects=True
-    )
-    assert b"1 Imported" in res.data
-    wait_for_all_checks(client)
-    set_modified_response(datastore_path=datastore_path)
-    res = client.post(url_for("ui.form_watch_checknow"), follow_redirects=True)
-    wait_for_all_checks(client)
-    rss_token = extract_rss_token_from_UI(client)
-    res = client.get(
-        url_for("rss.feed", token=rss_token, tag="extra-import-tag", _external=True),
-        follow_redirects=True
-    )
-    assert b"should-be-excluded" not in res.data
-    assert res.status_code == 200
-    assert b"first-imported=1" in res.data
     delete_all_watches(client)
 
 def test_tag_import_singular(client, live_server, measure_memory_usage, datastore_path):

@@ -940,9 +940,6 @@ def changedetection_app(config=None, datastore_o=None):
                 return None
             elif app.config.get('LOGIN_DISABLED'):
                 return None
-            # RSS access with token is allowed
-            elif request.blueprint == 'rss':
-                return None
             # Socket.IO routes - need separate handling
             elif request.path.startswith('/socket.io/'):
                 return None
@@ -1437,12 +1434,6 @@ def changedetection_app(config=None, datastore_o=None):
 
     app.register_blueprint(tags.construct_blueprint(datastore), url_prefix='/tags')
 
-    import changedetectionio.blueprint.check_proxies as check_proxies
-
-    app.register_blueprint(
-        check_proxies.construct_blueprint(datastore=datastore), url_prefix='/check_proxy'
-    )
-
     import changedetectionio.blueprint.backups as backups
 
     app.register_blueprint(backups.construct_blueprint(datastore), url_prefix='/backups')
@@ -1455,9 +1446,6 @@ def changedetection_app(config=None, datastore_o=None):
 
     app.register_blueprint(conditions.construct_blueprint(datastore), url_prefix='/conditions')
 
-    import changedetectionio.blueprint.rss.blueprint as rss
-
-    app.register_blueprint(rss.construct_blueprint(datastore), url_prefix='/rss')
 
     # watchlist UI buttons etc
     import changedetectionio.blueprint.ui as ui

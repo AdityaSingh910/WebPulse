@@ -32,7 +32,7 @@ except ImportError:
 
 from ..html_tools import TRANSLATE_WHITESPACE_TABLE
 from ..processors.restock_diff import Restock, get_price_from_history_str
-from ..blueprint.rss import RSS_CONTENT_FORMAT_DEFAULT
+RSS_CONTENT_FORMAT_DEFAULT = 'text'  # was imported from the removed blueprint/rss; kept so update_24 still runs
 from ..model import USE_SYSTEM_DEFAULT_NOTIFICATION_FORMAT_FOR_WATCH
 
 def create_backup_tarball(datastore_path, update_number):

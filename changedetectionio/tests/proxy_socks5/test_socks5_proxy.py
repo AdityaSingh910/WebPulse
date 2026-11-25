@@ -81,24 +81,6 @@ def test_socks5(client, live_server, measure_memory_usage, datastore_path):
     # Should see the proper string
     assert "Awesome, you made it".encode('utf-8') in res.data
 
-    # PROXY CHECKER WIDGET CHECK - this needs more checking
-    uuid = next(iter(live_server.app.config['DATASTORE'].data['watching']))
-
-    # POST only - it kicks off real fetches through every configured proxy
-    res = client.post(
-        url_for("check_proxies.start_check", uuid=uuid),
-        follow_redirects=True
-    )
-    assert res.status_code == 200
-    # It's probably already finished super fast :(
-    #assert b"RUNNING" in res.data
-    
-    wait_for_all_checks(client)
-    res = client.get(
-        url_for("check_proxies.get_recheck_status", uuid=uuid),
-        follow_redirects=True
-    )
-    assert b"OK" in res.data
 
     delete_all_watches(client)
 

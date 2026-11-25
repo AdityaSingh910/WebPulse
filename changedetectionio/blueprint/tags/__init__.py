@@ -29,7 +29,6 @@ def construct_blueprint(datastore: ChangeDetectionStore):
 
         from changedetectionio import processors
         output = render_template("groups-overview.html",
-                                 app_rss_token=datastore.data['settings']['application'].get('rss_access_token'),
                                  available_tags=sorted_tags,
                                  form=add_form,
                                  generate_tag_colors=processors.generate_processor_badge_colors,

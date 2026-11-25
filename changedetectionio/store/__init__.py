@@ -272,12 +272,6 @@ class ChangeDetectionStore(DatastoreUpdatesMixin, FileSavingDataStore):
                 self.__data['app_guid'] = str(uuid_builder.uuid4())
             self.commit()
 
-        # Ensure RSS access token exists
-        if not self.__data['settings']['application'].get('rss_access_token'):
-            secret = secrets.token_hex(16)
-            self.__data['settings']['application']['rss_access_token'] = secret
-            self.commit()
-
         # Ensure API access token exists
         if not self.__data['settings']['application'].get('api_access_token'):
             secret = secrets.token_hex(16)
@@ -297,9 +291,6 @@ class ChangeDetectionStore(DatastoreUpdatesMixin, FileSavingDataStore):
             self.__data['app_guid'] = "test-" + str(uuid_builder.uuid4())
         else:
             self.__data['app_guid'] = str(uuid_builder.uuid4())
-
-        # Generate RSS access token
-        self.__data['settings']['application']['rss_access_token'] = secrets.token_hex(16)
 
         # Generate API access token
         self.__data['settings']['application']['api_access_token'] = secrets.token_hex(16)

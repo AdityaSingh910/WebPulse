@@ -2,7 +2,6 @@ from os import getenv
 from copy import deepcopy
 
 from changedetectionio.blueprint.menu_modes import MENU_SIDEBAR_ACTIONMODES_DEFAULT
-from changedetectionio.blueprint.rss import RSS_FORMAT_TYPES, RSS_CONTENT_FORMAT_DEFAULT
 from changedetectionio.model.Tags import TagsDict
 
 from changedetectionio.notification import (
@@ -58,12 +57,6 @@ class model(dict):
                     'pager_size': 50,
                     'password': False,
                     'render_anchor_tag_content': False,
-                    'rss_access_token': None,
-                    'rss_content_format': RSS_CONTENT_FORMAT_DEFAULT,
-                    'rss_template_type': 'system_default',
-                    'rss_template_override': None,
-                    'rss_diff_length': 5,
-                    'rss_hide_muted_watches': True,
                     'rss_reader_mode': False,
                     'scheduler_timezone_default': None,  # Default IANA timezone name
                     'schema_version' : 0,

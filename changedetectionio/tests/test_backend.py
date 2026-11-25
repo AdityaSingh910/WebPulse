@@ -3,7 +3,7 @@ import os
 
 import time
 from flask import url_for
-from .util import set_original_response, set_modified_response, live_server_setup, wait_for_all_checks, extract_rss_token_from_UI, \
+from .util import set_original_response, set_modified_response, live_server_setup, wait_for_all_checks, \
     extract_UUID_from_client, delete_all_watches
 
 
@@ -76,15 +76,6 @@ def test_check_basic_change_detection_functionality(client, live_server, measure
     res = client.get(url_for("watchlist.index"))
     assert b'has-unread-changes' in res.data
 
-    # #75, and it should be in the RSS feed
-    rss_token = extract_rss_token_from_UI(client)
-    res = client.get(url_for("rss.feed", token=rss_token, _external=True))
-    expected_url = url_for('test_endpoint', _external=True)
-    assert b'<rss' in res.data
-
-    # re #16 should have the diff in here too
-    assert b'which has this one new line' in res.data
-    assert b'CDATA' in res.data
 
 #
     # Following the 'diff' link, it should no longer display as 'has-unread-changes' even after we recheck it a few times
