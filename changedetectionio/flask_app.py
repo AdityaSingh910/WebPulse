@@ -1448,12 +1448,17 @@ def changedetection_app(config=None, datastore_o=None):
 
     import changedetectionio.blueprint.watchlist as watchlist
 
+    # WebPulse: the full list of websites lives at /watches; / is the Home overview (one card per feature)
     app.register_blueprint(
         watchlist.construct_blueprint(
             datastore=datastore, update_q=update_q, queuedWatchMetaData=queuedWatchMetaData
         ),
-        url_prefix='',
+        url_prefix='/watches',
     )
+
+    import changedetectionio.blueprint.home as home
+
+    app.register_blueprint(home.construct_blueprint(datastore, update_q, worker_pool), url_prefix='')
 
     # After the built-in blueprints, so a plugin can't take over a core blueprint name
     from changedetectionio.pluggy_interface import register_plugin_blueprints

@@ -15,17 +15,18 @@
 <div class="tabs collapsable">
     <ul>
         <li class="tab"><a href="{{ base }}#general">{{ _('General') }}</a></li>
+        <li class="tab"><a href="{{ base }}#api">{{ _('API') }}</a></li>
+        <li class="tab"><a href="{{ base }}#about">{{ _('About') }}</a></li>
+        <li class="wp-tab-label" aria-hidden="true">{{ _('Advanced') }}</li>
         <li class="tab"><a href="{{ base }}#fetching">{{ _('Fetching') }}</a></li>
         <li class="tab"><a href="{{ base }}#filters">{{ _('Filters') }}</a></li>
         <li class="tab"><a href="{{ base }}#timedate">{{ _('Time & date') }}</a></li>
         <li class="tab"><a href="{{ base }}#ui-options">{{ _('Appearance') }}</a></li>
-        <li class="tab"><a href="{{ base }}#api">{{ _('API') }}</a></li>
         <li class="tab"><a href="{{ base }}#proxies">{{ _('Proxies') }}</a></li>
         <li class="tab"><a href="{{ url_for('backups.create') }}">{{ _('Backups') }}</a></li>
         {% for tab in plugin_tabs or [] %}
         <li class="tab"><a href="{{ base }}#plugin-{{ tab.plugin_id }}">{{ tab.tab_label }}</a></li>
         {% endfor %}
-        <li class="tab"><a href="{{ base }}#about">{{ _('About') }}</a></li>
     </ul>
 </div>
 {% endmacro %}

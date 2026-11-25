@@ -15,6 +15,17 @@
             if (e.key === 'Escape') body.classList.remove('wp-nav-open');
         });
 
+        // ---- Home quick-add: "example.com" -> "https://example.com" (same rule the website list used) ----
+        var quickUrl = document.querySelector('#new-watch-form input[name="url"]');
+        if (quickUrl) {
+            var normalise = function () {
+                var v = quickUrl.value.trim();
+                if (v && !/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(v)) quickUrl.value = 'https://' + v;
+            };
+            quickUrl.addEventListener('blur', normalise);
+            quickUrl.form.addEventListener('submit', normalise);
+        }
+
         // ---- Masked secrets: <div class="wp-secret" data-secret="..."> ----
         document.querySelectorAll('.wp-secret').forEach(function (box) {
             var value = box.getAttribute('data-secret') || '';

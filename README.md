@@ -43,42 +43,39 @@ contributors, version 0.70.4, used under the Apache License 2.0.
 py -3.12 -m venv C:\Users\<you>\venvs\cdio-simplified
 C:\Users\<you>\venvs\cdio-simplified\Scripts\python.exe -m pip install -r requirements.txt
 
-# optional: create the demonstration datastore (real sites + clearly labelled sample history)
+# optional demo data (run once, while WebPulse is stopped)
 C:\Users\<you>\venvs\cdio-simplified\Scripts\python.exe demo\seed_demo.py C:\Users\<you>\cdio-data\webpulse-demo
+C:\Users\<you>\venvs\cdio-simplified\Scripts\python.exe demo\add_demo_site.py C:\Users\<you>\cdio-data\webpulse-demo
 
-.\run.ps1 -Browser          # http://127.0.0.1:5000, with headless Edge for JavaScript pages
-.\run.ps1                   # plain HTTP fetcher only
-.\run.ps1 -Datastore D:\data\webpulse -Port 5001 -Python <venv python.exe>
+# ONE command starts everything: headless Edge, the internal demo site and WebPulse
+.\run.ps1                   # then open http://127.0.0.1:5000  (Ctrl+C stops everything it started)
+.\run.ps1 -NoBrowser -NoDemoSite -Datastore D:\data\webpulse -Port 5001
 ```
 
-`run.ps1` binds to `127.0.0.1` only and keeps SSRF protection on.
+Open **http://127.0.0.1:5000**. The Home page has one card per feature, with buttons to try each one.
+Everything binds to `127.0.0.1` only, and SSRF protection stays on.
 
-### Demonstration data
+### Demonstration data, clearly labelled
 
-`demo/seed_demo.py` creates two kinds of watches:
-
-* **Live watches** on sites that allow automated access:
-  * `books.toscrape.com` and `quotes.toscrape.com`, which are scraping sandboxes;
-  * `webscraper.io/test-sites`, a test shop;
-  * Hacker News and python.org.
-
-  They are checked every 6–12 hours.
-* **Sample watches** with *simulated* history, so the charts have data on day one. They are titled
-  "[Sample data] …", grouped under "Sample data (simulated)", paused, and point at `example.com`.
+| In the list | What it is |
+|---|---|
+| Normal titles, groups ending in "(live)" | **Real websites**: scraping sandboxes (`books.toscrape.com`, `quotes.toscrape.com`, `webscraper.io/test-sites`), Hacker News and python.org, checked every 6–12 hours |
+| `[Demo] …`, group "Demo site (simulated)" | **Controlled local demo site.** Price, stock and text can be changed on purpose. Reached only through the "WebPulse demo site" proxy, which never forwards |
+| `[Sample data] …`, group "Sample data (simulated)" | **Simulated history** so the charts have data on day one. Paused, and pointing at `example.com` |
 
 ## Tests
 
 ```powershell
 .\e2e\run_unit.ps1               # upstream unit tests + template syntax + dependency/import checks
-.\e2e\run_e2e.ps1 -Browser -UI   # 87 end-to-end checks
+.\e2e\run_e2e.ps1 -Browser -UI   # 89 end-to-end checks
 ```
 
-The 87 end-to-end checks are:
+The 89 end-to-end checks are:
 * 40 core and extended API checks;
 * 5 persistence checks;
 * 8 security checks: SSRF, password, CSRF;
 * 8 checks of the JavaScript browser fetcher;
-* 26 interface tests that click through the real UI in Microsoft Edge.
+* 28 interface tests that click through the real UI in Microsoft Edge.
 
 The harness starts its own local fixture site and throw-away instances. More detail is in
 [docs/SIMPLIFICATION_REPORT.md](docs/SIMPLIFICATION_REPORT.md), and screenshots are in

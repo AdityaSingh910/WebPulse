@@ -1,0 +1,207 @@
+{# WebPulse Home - one card per feature (2026, based on changedetection.io, Apache-2.0, see CHANGES.md) #}
+{% extends 'base.html' %}
+{% block content %}
+<div class="wp-home">
+
+  {# ---------- Quick add ---------- #}
+  <section class="wp-hero" id="add">
+    <div class="wp-hero-text">
+      <h2>{{ _('What would you like to watch?') }}</h2>
+      <p>{{ _('Paste a web address. Choose “Add Website” to be told when the page changes, or “Track Product” to follow a product’s price and stock.') }}</p>
+    </div>
+    <form class="pure-form wp-hero-form" id="new-watch-form" method="POST" action="{{ url_for('ui.ui_views.form_quick_watch_add') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label class="visually-hidden" for="url">{{ _('Web address') }}</label>
+      <input type="text" id="url" name="url" required placeholder="https://www.example.com/page" autocomplete="off">
+      <div class="wp-hero-actions">
+        <button type="submit" name="processor" value="text_json_diff" class="wp-btn" id="add-watch-go"><i data-feather="eye"></i>{{ _('Add Website') }}</button>
+        <button type="submit" name="processor" value="restock_diff" class="wp-btn wp-btn--accent" id="track-product-go"><i data-feather="tag"></i>{{ _('Track Product') }}</button>
+      </div>
+      {% if browser_available %}
+      <label class="wp-check"><input type="checkbox" name="fetch_backend" value="html_webdriver">
+        {{ _('This page needs JavaScript (open it in a real browser)') }}</label>
+      {% endif %}
+    </form>
+  </section>
+
+  <div class="wp-cards">
+
+    {# 1. Website monitoring #}
+    <article class="wp-card wp-feature">
+      <header><span class="wp-ico"><i data-feather="globe"></i></span><h3>{{ _('Website Monitoring') }}</h3></header>
+      <p class="wp-purpose">{{ _('WebPulse visits each web page you add on a schedule and keeps a copy of what it finds.') }}</p>
+      <div class="wp-stats">
+        <div><strong>{{ watches_total }}</strong><span>{{ _('websites') }}</span></div>
+        <div><strong>{{ active_n }}</strong><span>{{ _('active') }}</span></div>
+        <div class="{{ 'is-bad' if errors_n }}"><strong>{{ errors_n }}</strong><span>{{ _('with problems') }}</span></div>
+      </div>
+      {% if demo_n %}<p class="wp-note"><i data-feather="info"></i>{{ _('Titles starting with [Demo] or [Sample data] are demonstration data, not real websites.') }}</p>{% endif %}
+      <footer>
+        <a class="wp-btn" href="{{ url_for('watchlist.index') }}">{{ _('View all websites') }}</a>
+        <a class="wp-btn wp-btn--ghost" href="#add">{{ _('Add Website') }}</a>
+      </footer>
+    </article>
+
+    {# 2. Change detection #}
+    <article class="wp-card wp-feature">
+      <header><span class="wp-ico"><i data-feather="git-pull-request"></i></span><h3>{{ _('Website Change Detection') }}</h3></header>
+      <p class="wp-purpose">{{ _('When a page changes, WebPulse shows exactly what changed: added text in green, removed text in red.') }}</p>
+      <div class="wp-stats"><div class="{{ 'is-new' if unread_n }}"><strong>{{ unread_n }}</strong><span>{{ _('new changes not yet viewed') }}</span></div></div>
+      {% if changed %}
+      <ul class="wp-list">
+        {% for w in changed %}
+        <li><a href="{{ url_for('ui.ui_diff.diff_history_page', uuid=w.uuid) }}">{{ w.label }}</a>
+            <span>{{ w.last_changed|format_timestamp_timeago }}</span></li>
+        {% endfor %}
+      </ul>
+      {% else %}<p class="wp-empty">{{ _('No changes detected yet.') }}</p>{% endif %}
+      <footer>
+        <a class="wp-btn" href="{{ url_for('watchlist.index', unread=1) }}">{{ _('View changes') }}</a>
+      </footer>
+    </article>
+
+    {# 3. Price tracking #}
+    <article class="wp-card wp-feature">
+      <header><span class="wp-ico wp-ico--accent"><i data-feather="tag"></i></span><h3>{{ _('Product Price Tracking') }}</h3></header>
+      <p class="wp-purpose">{{ _('For product pages WebPulse reads the price and remembers every change.') }}</p>
+      {% if products %}
+      <ul class="wp-list">
+        {% for w in products %}
+        {%- set r = w.get('restock') or {} -%}
+        <li><a href="{{ url_for('ui.ui_diff.diff_history_page', uuid=w.uuid) }}">{{ w.label }}</a>
+          <span class="wp-price">{% if r.get('price') is not none %}{{ r.get('price')|format_price(r.get('currency')) }}{% else %}—{% endif %}
+            {%- if r.get_price_change_percent and r.get_price_change_percent() %} <em class="{{ 'down' if r.get_price_change_percent() < 0 else 'up' }}">{{ '%+.1f'|format(r.get_price_change_percent()) }}%</em>{% endif %}</span></li>
+        {% endfor %}
+      </ul>
+      {% else %}<p class="wp-empty">{{ _('No products tracked yet.') }}</p>{% endif %}
+      <footer>
+        <a class="wp-btn" href="{{ url_for('watchlist.index', processor='restock_diff') }}">{{ _('All products') }} ({{ products_n }})</a>
+        <a class="wp-btn wp-btn--ghost" href="#add">{{ _('Track Product') }}</a>
+      </footer>
+    </article>
+
+    {# 4. Stock #}
+    <article class="wp-card wp-feature">
+      <header><span class="wp-ico"><i data-feather="package"></i></span><h3>{{ _('Stock Availability Monitoring') }}</h3></header>
+      <p class="wp-purpose">{{ _('WebPulse notices when a product goes out of stock or comes back in stock.') }}</p>
+      <div class="wp-stats">
+        <div class="is-good"><strong>{{ in_stock_n }}</strong><span>{{ _('in stock') }}</span></div>
+        <div class="{{ 'is-bad' if out_stock_n }}"><strong>{{ out_stock_n }}</strong><span>{{ _('out of stock') }}</span></div>
+        <div><strong>{{ unknown_stock_n }}</strong><span>{{ _('not published by the shop') }}</span></div>
+      </div>
+      {% if out_stock %}<ul class="wp-list">{% for w in out_stock %}<li><a href="{{ url_for('ui.ui_diff.diff_history_page', uuid=w.uuid) }}">{{ w.label }}</a><span class="wp-pill wp-pill--bad">{{ _('Out of stock') }}</span></li>{% endfor %}</ul>{% endif %}
+      <footer><a class="wp-btn" href="{{ url_for('watchlist.index', processor='restock_diff') }}">{{ _('View stock status') }}</a></footer>
+    </article>
+
+    {# 5. Price analytics #}
+    <article class="wp-card wp-feature">
+      <header><span class="wp-ico wp-ico--accent"><i data-feather="trending-down"></i></span><h3>{{ _('Historical Price Analytics') }}</h3></header>
+      <p class="wp-purpose">{{ _('A price chart for every product, with the lowest, highest and average price.') }}</p>
+      {% if analytics %}
+      {%- set s = analytics.summary -%}{%- set c = analytics.currency -%}
+      <p class="wp-sub">{{ analytics.watch.label }}</p>
+      <div class="wp-stats wp-stats--4">
+        <div><strong>{{ s.current|format_price(c) }}</strong><span>{{ _('now') }}</span></div>
+        <div class="is-good"><strong>{{ s.min|format_price(c) }}</strong><span>{{ _('lowest') }}</span></div>
+        <div><strong>{{ s.max|format_price(c) }}</strong><span>{{ _('highest') }}</span></div>
+        <div><strong>{{ s.avg|format_price(c) }}</strong><span>{{ _('average') }}</span></div>
+      </div>
+      {% if s.cheaper_than_pct is not none %}<p class="wp-note">{{ _('Current price is cheaper than %(pct)s%% of the prices seen (%(n)s price checks).', pct=s.cheaper_than_pct, n=s.count) }}</p>{% endif %}
+      <footer><a class="wp-btn" href="{{ url_for('ui.ui_diff.diff_history_page', uuid=analytics.watch.uuid) }}">{{ _('View price history') }}</a></footer>
+      {% else %}<p class="wp-empty">{{ _('Price history appears after a product has been checked at least twice.') }}</p>{% endif %}
+    </article>
+
+    {# 6. Static vs dynamic scraping #}
+    <article class="wp-card wp-feature">
+      <header><span class="wp-ico"><i data-feather="code"></i></span><h3>{{ _('Static and Dynamic Web Scraping') }}</h3></header>
+      <p class="wp-purpose">{{ _('Simple pages are read directly (fast). Pages built by JavaScript are opened in a real browser (Microsoft Edge) so their content is visible.') }}</p>
+      <div class="wp-stats">
+        <div><strong>{{ static_n }}</strong><span>{{ _('read directly') }}</span></div>
+        <div><strong>{{ dynamic_n }}</strong><span>{{ _('read with a browser') }}</span></div>
+        <div class="{{ 'is-good' if browser_available else 'is-bad' }}"><strong>{{ _('On') if browser_available else _('Off') }}</strong><span>{{ _('browser') }}</span></div>
+      </div>
+      {% if pair %}
+      <p class="wp-note">{{ _('Compare the same JavaScript page read both ways:') }}</p>
+      <footer>
+        <a class="wp-btn wp-btn--ghost" href="{{ url_for('ui.ui_preview.preview_page', uuid=pair.static.uuid) }}">{{ _('Read directly') }}</a>
+        <a class="wp-btn" href="{{ url_for('ui.ui_preview.preview_page', uuid=pair.dynamic.uuid) }}">{{ _('Read with browser') }}</a>
+      </footer>
+      {% endif %}
+    </article>
+
+    {# 7. Scheduling #}
+    <article class="wp-card wp-feature">
+      <header><span class="wp-ico"><i data-feather="clock"></i></span><h3>{{ _('Task Scheduling') }}</h3></header>
+      <p class="wp-purpose">{{ _('Every website is checked automatically at a set interval. You can also pause everything.') }}</p>
+      <div class="wp-stats">
+        <div><strong>{{ default_interval|format_duration }}</strong><span>{{ _('default interval') }}</span></div>
+        <div class="{{ 'is-bad' if all_paused else 'is-good' }}"><strong>{{ _('Paused') if all_paused else _('Running') }}</strong><span>{{ _('scheduler') }}</span></div>
+      </div>
+      {% if next_due and not all_paused %}
+      <ul class="wp-list">{% for secs, w in next_due %}<li><span class="wp-trunc">{{ w.label }}</span><span>{% if secs < 5 %}{{ _('now') }}{% elif secs < 60 %}{{ _('in') }} {{ secs|int }} s{% elif secs < 3600 %}{{ _('in') }} {{ (secs / 60)|round|int }} min{% else %}{{ _('in') }} {{ '%.1f'|format(secs / 3600) }} h{% endif %}</span></li>{% endfor %}</ul>
+      {% endif %}
+      <footer>
+        <a class="wp-btn wp-btn--ghost" href="{{ url_for('settings.settings_page') }}#general">{{ _('Change interval') }}</a>
+        <form method="POST" action="{{ url_for('settings.toggle_all_paused') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="wp-btn wp-btn--ghost">{{ _('Resume all') if all_paused else _('Pause all') }}</button></form>
+      </footer>
+    </article>
+
+    {# 8. Workers & queue #}
+    <article class="wp-card wp-feature">
+      <header><span class="wp-ico"><i data-feather="cpu"></i></span><h3>{{ _('Concurrent Workers and Queue') }}</h3></header>
+      <p class="wp-purpose">{{ _('Several workers check websites at the same time; the rest wait in a queue. Checks you start yourself go first.') }}</p>
+      <div class="wp-stats">
+        <div><strong>{{ workers_n }}</strong><span>{{ _('workers') }}</span></div>
+        <div><strong class="checking-now-int">{{ running_n }}</strong><span>{{ _('checking now') }}</span></div>
+        <div><strong class="queue-size-int">{{ queued_n }}</strong><span>{{ _('waiting') }}</span></div>
+      </div>
+      <footer>
+        <a class="wp-btn" href="{{ url_for('ui.ui_queue.queue_page') }}">{{ _('Open live queue') }}</a>
+        <form method="POST" action="{{ url_for('ui.form_watch_checknow') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="wp-btn wp-btn--ghost">{{ _('Check all now') }}</button></form>
+      </footer>
+    </article>
+
+    {# 9. Notifications #}
+    <article class="wp-card wp-feature">
+      <header><span class="wp-ico"><i data-feather="bell"></i></span><h3>{{ _('Notifications') }}</h3></header>
+      <p class="wp-purpose">{{ _('Get a message (e-mail, Discord, Telegram, a webhook …) whenever a change is detected.') }}</p>
+      <div class="wp-stats">
+        <div><strong>{{ global_urls_n }}</strong><span>{{ _('for all websites') }}</span></div>
+        <div><strong>{{ watch_urls_n }}</strong><span>{{ _('websites with their own') }}</span></div>
+        <div class="{{ 'is-bad' if all_muted else 'is-good' }}"><strong>{{ _('Muted') if all_muted else _('On') }}</strong><span>{{ _('alerts') }}</span></div>
+      </div>
+      <footer>
+        <a class="wp-btn" href="{{ url_for('settings.notifications.apprise') }}">{{ _('Set up notifications') }}</a>
+        <a class="wp-btn wp-btn--ghost" href="{{ url_for('settings.notification_logs') }}">{{ _('Sent notifications') }}</a>
+      </footer>
+    </article>
+
+    {# 10. REST API #}
+    <article class="wp-card wp-feature">
+      <header><span class="wp-ico"><i data-feather="terminal"></i></span><h3>{{ _('REST API') }}</h3></header>
+      <p class="wp-purpose">{{ _('Other programs can add websites and read changes and price history through the API.') }}</p>
+      <div class="wp-stats"><div class="{{ 'is-good' if api_enabled else 'is-bad' }}"><strong>{{ _('Key required') if api_enabled else _('Open') }}</strong><span>{{ _('API access') }}</span></div></div>
+      <pre class="wp-code">GET {{ request.host_url }}api/v1/watch
+x-api-key: ••••••••</pre>
+      <footer><a class="wp-btn" href="{{ url_for('settings.settings_page') }}#api">{{ _('Show API key') }}</a></footer>
+    </article>
+
+    {# 11. Data history #}
+    <article class="wp-card wp-feature">
+      <header><span class="wp-ico"><i data-feather="database"></i></span><h3>{{ _('Data History') }}</h3></header>
+      <p class="wp-purpose">{{ _('Every version of every page is saved on this computer, so history survives restarts.') }}</p>
+      <div class="wp-stats">
+        <div><strong>{{ total_snapshots }}</strong><span>{{ _('saved versions') }}</span></div>
+        <div><strong>{% if oldest_snapshot %}{{ oldest_snapshot|format_timestamp_timeago }}{% else %}—{% endif %}</strong><span>{{ _('oldest') }}</span></div>
+      </div>
+      <footer>
+        <a class="wp-btn" href="{{ url_for('backups.create') }}">{{ _('Backups') }}</a>
+        <a class="wp-btn wp-btn--ghost" href="{{ url_for('watchlist.index') }}">{{ _('Browse websites') }}</a>
+      </footer>
+    </article>
+
+  </div>
+</div>
+{% endblock %}

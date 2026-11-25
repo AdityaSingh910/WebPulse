@@ -1,6 +1,7 @@
 // Modified 2026 for the simplified (academic) fork of changedetection.io - optional features removed, see CHANGES.md
 $(function () {
     function normalizeUrl(el) {
+        if (!el) return;   // WebPulse: the quick-add form now lives on the Home page
         const val = el.value.trim();
         if (val && !/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(val)) {
             el.value = 'https://' + val;

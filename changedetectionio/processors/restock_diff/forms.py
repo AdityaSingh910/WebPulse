@@ -1,3 +1,4 @@
+# Modified 2026 for the simplified (academic) fork of changedetection.io - optional features removed, see CHANGES.md
 from wtforms import (
     BooleanField,
     validators,
@@ -34,7 +35,7 @@ class processor_settings_form(processor_text_json_diff_form):
     processor_config_restock_diff = FormField(RestockSettingsForm)
 
     def extra_tab_content(self):
-        return _l('Restock & Price Detection')
+        return _l('Price & stock')
 
     def extra_form_template(self):
         # Rendered with Flask's render_template() so the help text is extracted for translation (#4612)

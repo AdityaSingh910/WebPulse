@@ -901,3 +901,112 @@ body.wp-public .wp-topbar { display: none; }
 
 // Selects: never clip the text (the shared input padding plus a fixed height cut descenders)
 .pure-form select { height: auto !important; min-height: 36px; padding-top: 6px !important; padding-bottom: 6px !important; line-height: 1.35; }
+
+// =====================================================================================================
+// Home page (feature cards) + simplified navigation (2026)
+// =====================================================================================================
+.wp-home { width: 100%; display: flex; flex-direction: column; gap: 18px; }
+
+.wp-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: 20px 28px;
+  align-items: center;
+  padding: 22px 26px;
+  background: var(--wp-surface);
+  border: 1px solid var(--wp-border);
+  border-radius: var(--wp-radius-lg);
+  box-shadow: var(--wp-shadow);
+  h2 { margin: 0 0 6px; font-size: 1.25rem; }
+  p { margin: 0; color: var(--wp-muted); }
+}
+.wp-hero-form {
+  display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+  input[type=text] { flex: 1 1 260px; min-width: 0; height: 42px; font-size: 1rem; }
+  .wp-hero-actions { display: flex; gap: 8px; }
+  .wp-btn { height: 42px; }
+  .wp-check { flex: 1 0 100%; display: flex; align-items: center; gap: 8px; font-weight: 500 !important; color: var(--wp-muted) !important; font-size: 0.86rem !important; }
+}
+.wp-btn.wp-btn--accent { background: var(--wp-accent) !important; border-color: var(--wp-accent) !important; color: #fff !important; &:hover { filter: brightness(0.95); } }
+
+.wp-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+.wp-feature {
+  display: flex; flex-direction: column; gap: 12px;
+  padding: 18px 20px;
+  header { display: flex; align-items: center; gap: 10px; }
+  h3 { margin: 0; font-size: 1.02rem; }
+  .wp-purpose { margin: 0; color: var(--wp-muted); font-size: 0.88rem; line-height: 1.45; }
+  footer { margin-top: auto; display: flex; flex-wrap: wrap; gap: 8px; padding-top: 4px;
+    form { margin: 0; display: inline-flex; } }
+}
+.wp-ico {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: 9px;
+  background: var(--wp-primary-soft); color: var(--wp-primary-ink);
+  svg.feather { width: 18px; height: 18px; }
+  &.wp-ico--accent { background: var(--wp-accent-soft); color: var(--wp-accent); }
+}
+.wp-stats {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;
+  &.wp-stats--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  > div { padding: 8px 10px; border-radius: 9px; background: var(--wp-surface-2); border: 1px solid var(--wp-border); min-width: 0; }
+  strong { display: block; font-size: 1.12rem; color: var(--wp-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  span { display: block; font-size: 0.74rem; color: var(--wp-muted); line-height: 1.25; }
+  .is-good strong { color: var(--wp-success); }
+  .is-bad strong { color: var(--wp-danger); }
+  .is-new strong { color: var(--wp-primary); }
+}
+.wp-stats:has(> div:only-child) { grid-template-columns: 1fr; }
+.wp-list {
+  list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px;
+  li { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 5px 0; border-bottom: 1px dashed var(--wp-border); font-size: 0.86rem; }
+  li:last-child { border-bottom: 0; }
+  a, .wp-trunc { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  li > span { flex: 0 0 auto; color: var(--wp-muted); font-size: 0.8rem; }
+}
+.wp-price { color: var(--wp-ink) !important; font-weight: 700; em { font-style: normal; font-weight: 700; margin-left: 4px; &.down { color: var(--wp-success); } &.up { color: var(--wp-danger); } } }
+.wp-pill { border-radius: 999px; padding: 1px 8px; font-size: 0.74rem !important; font-weight: 700; &.wp-pill--bad { background: var(--wp-danger-soft); color: var(--wp-danger) !important; } }
+.wp-sub { margin: 0; font-weight: 600; color: var(--wp-ink); font-size: 0.88rem; }
+.wp-note { margin: 0; color: var(--wp-muted); font-size: 0.8rem; display: flex; gap: 6px; align-items: flex-start; svg.feather { width: 14px; height: 14px; flex: 0 0 auto; margin-top: 2px; } }
+.wp-empty { margin: 0; color: var(--wp-subtle); font-size: 0.86rem; font-style: italic; }
+.wp-code { margin: 0; padding: 10px 12px; border-radius: 9px; background: var(--wp-surface-2); border: 1px solid var(--wp-border); font-size: 0.8rem; color: var(--wp-ink); white-space: pre-wrap; word-break: break-all; }
+
+.wp-list-toolbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%;
+  p { margin: 0; color: var(--wp-muted); }
+}
+
+// Sidebar: collapsible Advanced group
+.wp-nav-advanced {
+  summary { list-style: none; cursor: pointer; &::-webkit-details-marker { display: none; } }
+  .wp-chevron { margin-left: auto; width: 15px !important; height: 15px !important; transition: transform 0.15s; }
+  &[open] .wp-chevron { transform: rotate(180deg); }
+  .wp-nav-sub { padding-left: 39px; font-size: 0.88rem; }
+}
+
+// "Advanced" label inside a tab row
+.tabs li.wp-tab-label {
+  align-self: center;
+  margin-left: 14px !important;
+  padding: 2px 10px 2px 14px !important;
+  border-left: 1px solid var(--wp-border-strong) !important;
+  color: var(--wp-subtle);
+  font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+}
+
+@media only screen and (max-width: $desktop-wide-breakpoint) {
+  .wp-hero { grid-template-columns: 1fr; padding: 16px; }
+  .wp-hero-form .wp-hero-actions { flex: 1 0 100%; .wp-btn { flex: 1 1 0; justify-content: center; } }
+  .wp-cards { grid-template-columns: 1fr; }
+  .wp-list-toolbar { flex-direction: column; align-items: stretch; }
+}
+
+// Home hero form: not a card inside a card
+.wp-hero #new-watch-form { border: 0 !important; box-shadow: none !important; padding: 0 !important; background: transparent !important; }
+
+.wp-stats.wp-stats--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.wp-stats:has(> div:nth-child(2):last-child) { grid-template-columns: repeat(2, minmax(0, 1fr)); }

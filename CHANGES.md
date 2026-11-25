@@ -245,3 +245,39 @@ All favicons (`static/favicons/*`) and `static/images/avatar-256x256.png` were r
 `include_subtract.html`, `apprise.html`, `import.html`, `forms.py`, `store/__init__.py`, `notification/__init__.py`,
 `notification/handler.py`, `notification/apprise_plugin/assets.py`, `notification_service.py`, `toggle-theme.js`,
 `plugins.js`, `scheduler.js`. `styles.css` was regenerated.
+
+## Phase 10: one Home dashboard, simpler navigation, single start command
+
+This phase changes presentation only. Existing endpoints, forms and helpers are reused; no backend logic changed.
+
+* **Home page (`/`), new `blueprint/home`:** one card per feature. Each card has a plain-language explanation,
+  live figures from the datastore, worker pool and queue, and direct buttons. The cards are: Website Monitoring,
+  Change Detection, Product Price Tracking, Stock Availability, Historical Price Analytics (reuses
+  `compute_price_summary`), Static and Dynamic Scraping, Task Scheduling, Workers and Queue, Notifications,
+  REST API and Data History.
+* **Quick add on Home:** the **Add Website** and **Track Product** buttons post to the existing quick-add
+  endpoint, with an optional "needs JavaScript" checkbox that sets `fetch_backend`.
+* **Website list:** moved to `/watches/`. `url_for('watchlist.index')` links follow automatically. The duplicate
+  quick-add form on the list was replaced with one "Add Website / Track Product" button.
+* **Plain labels:**
+  * Recheck → Check now, History → View changes / Price history, Preview → View page, and Recheck all → Check
+    all now.
+  * The processor names and badges are now "Website" and "Product", and "Restock & Price Detection" is now
+    "Price & stock".
+* **Navigation:**
+  * The sidebar is Home, Websites, Products, Notifications, Queue & workers, then Settings.
+  * A collapsible **Advanced** group holds Advanced settings, Groups, Import, Visual add, Backups and About.
+  * Search moved to the top bar.
+* **Settings and edit tabs:** everyday tabs come first, then an "Advanced" label and the technical tabs.
+* **Single application:** `run.ps1` starts headless Edge, the internal demo site and WebPulse on port 5000. Ctrl+C
+  stops the helpers it started. The separate lab instance on port 5001 is retired.
+* **Controlled demo with SSRF protection on:** `demo/add_demo_site.py` works as follows.
+  * The `[Demo]` watches use reserved `.test` hostnames and go through one named proxy, "WebPulse demo site
+    (simulated)", which is the fixture on 127.0.0.1:8199. It never forwards; it only serves its own canned pages.
+    This was verified: requests for WebPulse's own API or 169.254.169.254 through it return the fixture's 404.
+  * The system default proxy is "No proxy", so every other watch connects directly.
+  * `ALLOW_IANA_RESTRICTED_ADDRESSES` stays off.
+* **JS fix:** `watch-overview.js` no longer errors when the list page has no URL field, and URL normalisation
+  (example.com → https://example.com) now runs for the Home form in `webpulse-ui.js`.
+* **Tests:** `e2e/ui_test.py` was updated for the new layout and gained U27 (11 feature cards) and U28 (every
+  card button opens a working page). **89/89** end-to-end checks pass.

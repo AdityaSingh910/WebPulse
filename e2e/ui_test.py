@@ -104,8 +104,8 @@ def run():
         page.wait_for_load_state('networkidle')
         uuid = watch_by_url('/page.html')
         w = wait_history(uuid, 1) if uuid else {}
-        page.goto(BASE + '/', wait_until='networkidle')
-        check('U03', 'Add watch from the dashboard form (and first check runs)', uuid and int(w.get('history_n') or 0) >= 1
+        page.goto(BASE + '/watches/', wait_until='networkidle')
+        check('U03', '"Add Website" on Home adds a watch (and the first check runs)', uuid and int(w.get('history_n') or 0) >= 1
               and page.locator(f'tr[data-watch-uuid="{uuid}"]').count() == 1, f'uuid={uuid}')
 
         # ---- U04: edit the watch title through the edit page ----
@@ -120,11 +120,11 @@ def run():
         # ---- U05/U06: change the page, Recheck from the row, open History ----
         requests.post(FIX + '/set?text=Version+two+-+BIG+NEWS.')
         time.sleep(1.2)
-        page.goto(BASE + '/', wait_until='networkidle')
-        page.locator(f'tr[data-watch-uuid="{uuid}"] button:has-text("Recheck")').first.click()
+        page.goto(BASE + '/watches/', wait_until='networkidle')
+        page.locator(f'tr[data-watch-uuid="{uuid}"] button:has-text("Check now")').first.click()
         w = wait_history(uuid, 2)
-        check('U05', 'Recheck button queues a check that detects the change', int(w.get('history_n') or 0) >= 2, f"history_n={w.get('history_n')}")
-        page.goto(BASE + '/', wait_until='networkidle')
+        check('U05', '"Check now" button queues a check that detects the change', int(w.get('history_n') or 0) >= 2, f"history_n={w.get('history_n')}")
+        page.goto(BASE + '/watches/', wait_until='networkidle')
         link = page.locator(f'tr[data-watch-uuid="{uuid}"] a.history-link').first
         if link.get_attribute('target'):   # "Open History in a new tab" (default on) -> follow the new tab
             with ctx.expect_page() as new_tab:
@@ -147,17 +147,16 @@ def run():
         # ---- U08/U09: price watch via quick-add with the restock processor ----
         page.goto(BASE + '/', wait_until='networkidle')
         page.fill('#new-watch-form input[name="url"]', FIX + '/product.html')
-        page.check('#new-watch-form input[name="processor"][value="restock_diff"]')
-        page.click('#add-watch-go')
+        page.click('#track-product-go')   # "Track Product" button on Home
         page.wait_for_load_state('networkidle')
         puuid = watch_by_url('/product.html')
         wait_history(puuid, 1)
         requests.post(FIX + '/set?price=449.00&stock=OutOfStock')
         time.sleep(1.2)
-        page.goto(BASE + '/', wait_until='networkidle')
-        page.locator(f'tr[data-watch-uuid="{puuid}"] button:has-text("Recheck")').first.click()
+        page.goto(BASE + '/watches/', wait_until='networkidle')
+        page.locator(f'tr[data-watch-uuid="{puuid}"] button:has-text("Check now")').first.click()
         wait_history(puuid, 2)
-        page.goto(BASE + '/', wait_until='networkidle')
+        page.goto(BASE + '/watches/', wait_until='networkidle')
         row = page.locator(f'tr[data-watch-uuid="{puuid}"]')
         row_text = row.inner_text()
         shot(page, '04-dashboard-with-price')
@@ -182,7 +181,7 @@ def run():
 
         # ---- U12: search modal ----
         page.goto(BASE + '/', wait_until='networkidle')
-        page.click('.wp-sidebar .js-open-search-modal')
+        page.click('.wp-topbar .js-open-search-modal')
         page.wait_for_selector('#search-modal[open]', timeout=5000)
         page.fill('#search-modal-input', 'product')
         page.keyboard.press('Enter')
@@ -287,7 +286,7 @@ def run():
         m.close()
 
         # ---- U23: every internal link on every page resolves ----
-        pages = ['/', '/tags/list', '/imports/import', '/settings', '/settings/notifications/', '/settings/notification-logs',
+        pages = ['/', '/watches/', '/watches/?processor=restock_diff', '/tags/list', '/imports/import', '/settings', '/settings/notifications/', '/settings/notification-logs',
                  '/queue', '/backups/create', f'/edit/{uuid}', f'/diff/{uuid}', f'/preview/{uuid}', f'/diff/{puuid}', f'/edit/{puuid}']
         links, external = set(), set()
         for pth in pages:
@@ -340,6 +339,26 @@ def run():
         check('U25', 'Password login page (WebPulse branded) and sign-in', on_login and logged_in)
 
         browser.close()
+
+    # ---- U27/U28: Home page - one card per feature, every card button leads somewhere real ----
+    with sync_playwright() as p:
+        b = p.chromium.launch(channel='msedge', headless=True)
+        hp = b.new_page(viewport={'width': 1440, 'height': 900})
+        hp.goto(BASE + '/', wait_until='networkidle')
+        titles = [t.strip() for t in hp.locator('.wp-feature h3').all_inner_texts()]
+        expected = ['Website Monitoring', 'Website Change Detection', 'Product Price Tracking', 'Stock Availability Monitoring',
+                    'Historical Price Analytics', 'Static and Dynamic Web Scraping', 'Task Scheduling',
+                    'Concurrent Workers and Queue', 'Notifications', 'REST API', 'Data History']
+        hp.screenshot(path=os.path.join(SHOTS, '00-home.png'), full_page=True)
+        check('U27', 'Home shows a card for each of the 11 features', titles == expected, titles)
+        hrefs = {a.get_attribute('href') for a in hp.locator('.wp-feature footer a').all()}
+        bad = {}
+        for href in sorted(h for h in hrefs if h and not h.startswith('#')):
+            code = requests.get(urljoin(BASE + '/', href), timeout=30).status_code
+            if code >= 400:
+                bad[href] = code
+        check('U28', f'Every Home card button opens a working page ({len(hrefs)} links)', not bad, bad or 'all OK')
+        b.close()
 
     # 'Transport not open' is raised by the Socket.IO client when the test navigates away before the live-update
     # handshake finished (pages are left within milliseconds here); it does not occur on a page that is actually used.

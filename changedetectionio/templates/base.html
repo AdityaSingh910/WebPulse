@@ -2,7 +2,8 @@
 {# WebPulse application shell. Rewritten 2026 for the WebPulse redesign (based on changedetection.io, Apache-2.0, see CHANGES.md) #}
 {%- set _ep = request.endpoint or '' -%}
 {%- set _authed = current_user.is_authenticated or not has_password -%}
-{%- if _ep == 'watchlist.index' -%}{%- set _page = _('Dashboard') -%}
+{%- if _ep == 'home.home_page' -%}{%- set _page = _('Home') -%}
+{%- elif _ep == 'watchlist.index' -%}{%- set _page = _('Products') if request.args.get('processor') == 'restock_diff' else _('Websites') -%}
 {%- elif _ep.startswith('add_watch_ui.') -%}{%- set _page = _('Add watch') -%}
 {%- elif _ep.startswith('ui.ui_edit') -%}{%- set _page = _('Edit watch') -%}
 {%- elif _ep.startswith('ui.ui_diff') -%}{%- set _page = _('Change history') -%}

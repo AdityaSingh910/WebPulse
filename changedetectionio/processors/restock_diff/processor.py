@@ -12,9 +12,9 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 # Translatable strings - extracted by pybabel, translated at runtime in __init__.py
 # Use a marker function so pybabel can extract these strings
 def _(x): return x  # Translation marker for extraction only
-name = _('Re-stock & Price detection for pages with a SINGLE product')
-description = _('Detects if the product goes back to in-stock')
-list_badge_text = _('Restock')
+name = _('Product price & stock (a page showing one product)')
+description = _('Tracks the price and whether the product is in stock')
+list_badge_text = _('Product')
 del _  # Remove marker function
 processor_weight = 1
 
