@@ -24,10 +24,8 @@ $env:LISTEN_HOST = '127.0.0.1'
 $env:DISABLE_VERSION_CHECK = 'true'   # no daily "phone home" to changedetection.io
 $env:FETCH_WORKERS = "$Workers"       # concurrent fetch workers
 $env:PYTHONIOENCODING = 'utf-8'
-# Phase 1 (config-only) simplification - these switch the optional features off without code changes
-$env:LLM_FEATURES_DISABLED = 'true'
-$env:DISABLE_MCP = 'true'
-$env:DISABLED_PROCESSORS = 'image_ssim_diff'
+# (Phase 1 used LLM_FEATURES_DISABLED / DISABLE_MCP / DISABLED_PROCESSORS here; those features are now
+# removed from the code, so the switches are no longer needed.)
 Remove-Item Env:ALLOW_IANA_RESTRICTED_ADDRESSES -ErrorAction SilentlyContinue
 Remove-Item Env:ALLOW_FILE_URI -ErrorAction SilentlyContinue
 

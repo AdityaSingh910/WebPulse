@@ -9,7 +9,7 @@
 #
 # Usage:  .\e2e\run_e2e.ps1 [-Python <path to python.exe>] [-Label name] [-ExpectRemoved "/a,/b"]
 param(
-    [string]$Python = "C:\Users\adity\venvs\cdio\Scripts\python.exe",
+    [string]$Python = "C:\Users\adity\venvs\cdio-simplified\Scripts\python.exe",
     [string]$Label = "run",
     [string]$ExpectRemoved = "",
     [string]$ExpectNoUi = "",
@@ -38,9 +38,7 @@ function Get-RamMB([int]$port) {
     ($procs | ForEach-Object { (Get-Process -Id $_.ProcessId).WorkingSet64 } | Measure-Object -Maximum).Maximum / 1MB
 }
 function Start-App([string]$datastore, [int]$port, [hashtable]$extraEnv, [string]$logName) {
-    $base = @{ LISTEN_HOST = '127.0.0.1'; DISABLE_VERSION_CHECK = 'true'; FETCH_WORKERS = '3'; PYTHONIOENCODING = 'utf-8';
-               LLM_FEATURES_DISABLED = 'true'; DISABLE_MCP = 'true'; DISABLED_PROCESSORS = 'image_ssim_diff' }
-    if ($env:E2E_PLAYWRIGHT_DRIVER_URL) { $base.PLAYWRIGHT_DRIVER_URL = $env:E2E_PLAYWRIGHT_DRIVER_URL }
+    $base = @{ LISTEN_HOST = '127.0.0.1'; DISABLE_VERSION_CHECK = 'true'; FETCH_WORKERS = '3'; PYTHONIOENCODING = 'utf-8' }
     $all = $base + $extraEnv
     $saved = @{}
     foreach ($k in $all.Keys) { $saved[$k] = [Environment]::GetEnvironmentVariable($k); [Environment]::SetEnvironmentVariable($k, $all[$k]) }

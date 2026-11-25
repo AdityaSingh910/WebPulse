@@ -1,4 +1,3 @@
-feedgen~=1.0
 feedparser~=6.0  # For parsing RSS/Atom feeds
 flask-compress
 flask-login>=0.6.3
@@ -72,14 +71,6 @@ lxml !=5.2.0,!=5.2.1,>=6.1.3,<7
 # Consider updating to latest stable version periodically
 elementpath==5.1.4
 
-# For fast image comparison in screenshot change detection
-# opencv-python-headless is OPTIONAL (excluded from requirements.txt)
-# - Installed conditionally via Dockerfile (skipped on arm/v7 and arm/v8 due to long build times)
-# - Pixelmatch is used as fallback when OpenCV is unavailable
-# - To install manually: pip install opencv-python-headless>=4.8.0.76
-
-selenium~=4.52.0
-
 # Templating, so far just in the URLs but in the future can be for the notifications also
 jinja2~=3.1
 arrow
@@ -91,23 +82,10 @@ defusedxml
 jq~=1.13; python_version >= "3.8" and sys_platform == "darwin"
 jq~=1.3; python_version >= "3.8" and sys_platform == "linux"
 
-# playwright is installed at Dockerfile build time because it's not available on all platforms
-
-pyppeteer-ng==2.0.0rc16
-pyppeteerstealth>=0.0.5
-
-# Include pytest, so if theres a support issue we can ask them to run these tests on their setup
-pytest ~=9.2
-pytest-flask ~=1.3
-pytest-mock ~=3.17
 
 # OpenAPI validation support
 openapi-core[flask] ~= 0.23
 # openapi-spec-validator (pulled in by openapi-core) requires jsonschema>=4.24.0.
-# litellm 1.83.1–1.83.14 exact-pin jsonschema==4.23.0, which is below that floor —
-# the two can never coexist. Without this pin, pip walks back through ~14 litellm
-# patch releases before finding 1.83.0 (jsonschema>=4.23.0,<5.0.0, accepts 4.24.x).
-# Pinning >=4.24.0 here lets the resolver reject incompatible litellm versions immediately.
 jsonschema>=4.26.0,<5.0.0
 
 loguru
@@ -126,13 +104,17 @@ Flask-Babel>=4.0.0,<4.1.0
 # and would force the combined work to be GPL. See the license-compliance CI step.
 rapidfuzz
 
+# Browser fetcher ('Chrome/Javascript'): connects over CDP to Chrome/Edge (PLAYWRIGHT_DRIVER_URL).
+# Simplified fork: the only browser fetcher (Selenium and Puppeteer were removed). Apache-2.0.
+# No browser download needed on Windows - run.ps1 -Browser uses the Microsoft Edge that ships with Windows.
+playwright>=1.49,<2
+
 # Needed for > 3.10, https://github.com/microsoft/playwright-python/issues/2096
 greenlet >= 3.5.6
 
-# Optional: Used for high-concurrency SocketIO mode (via SOCKETIO_MODE=gevent)
-# Note: gevent has cross-platform limitations (Windows 1024 socket limit, macOS ARM build issues)
-# Default SOCKETIO_MODE=threading is recommended for better compatibility
-gevent
+# Screenshot handling (content_fetchers/screenshot_handler.py, model/Watch.py). Upstream never listed it,
+# it arrived transitively via the removed LLM stack, so it is explicit now. MIT-CMU licence.
+pillow
 
 referencing==0.37.0  # jsonschema-path>=0.4.x allows <0.38.0; 0.37.0 is current latest
 
@@ -154,37 +136,11 @@ tzdata
 
 pluggy ~= 1.7
 
-# LLM intent-based change evaluation (multi-provider via litellm)
-# Uncapped: litellm now uses jsonschema<5.0,>=4.0.0, resolving earlier openapi-spec-validator conflict.
-# Note litellm >=1.83.11 does `from typing import NotRequired`, which is 3.11+ (PEP 655) - that is
-# why 3.10 support was dropped rather than pinning everyone to the last 3.10-compatible release.
-# armv7: litellm ships a Rust extension with PyPI wheels for x86_64/aarch64 only. armv7 wheels come from
-# piwheels, which lags (or fails) on new releases, and compiling the sdist under QEMU takes 3+ hours then
-# runs out of memory. So armv7 keeps a loose floor and the Dockerfile passes --only-binary=litellm, pip then
-# picks the newest version that has an armv7 wheel. Don't raise the armv7 floor (Dependabot will try)
-# above what https://www.piwheels.org/project/litellm/ has built.
-litellm>=1.106.2; platform_machine != "armv7l"
-litellm>=1.91.5; platform_machine == "armv7l"
-# Used today for LLMSettings (model/LLMSettings.py); transitively pulled by litellm but pinned explicitly
-# so the validation/typing layer doesn't disappear if litellm drops it.
+# Data validation for the content fetcher capability model (content_fetchers/base.py)
 pydantic>=2.14.3,<3.0
-# MCP wire types and protocol versions for /mcp (MIT, only needs pydantic). Not the full `mcp` SDK, which is ASGI
-# (starlette/uvicorn). ~15MB once loaded, so only imported on the first authenticated /mcp request.
-mcp-types>=2.3.0,<3.0
-# For MCP LLM server
-authlib>=1.9.8,<2.0
-# BM25 relevance trimming for large snapshots (pure Python, no ML)
-rank-bm25>=0.2.2
 
-# Needed for testing, cross-platform for process and system monitoring
+# Cross-platform process and system monitoring (memory stats on shutdown, gc cleanup)
 psutil==7.2.2
 
 # For events between checking and socketio updates
 blinker
-pytest-xdist
-
-
-# QR code for the "install on your phone" PWA hand-off in Settings > General.
-# BSD-3-Clause and dependency-free. Chosen over `qrcode`, which ships both a BSD and an
-# "Other/Proprietary" trove classifier - ambiguity we don't want in an Apache-2.0 tree.
-segno==1.6.6
