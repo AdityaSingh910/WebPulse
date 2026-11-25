@@ -741,7 +741,7 @@ def register_builtin_fetchers():
     This is called from content_fetchers/__init__.py after all fetchers are imported
     to avoid circular import issues.
     """
-    from changedetectionio.content_fetchers import requests, playwright, puppeteer, webdriver_selenium
+    from changedetectionio.content_fetchers import requests, playwright
 
     # Register each built-in fetcher plugin
     if hasattr(requests, 'requests_plugin'):
@@ -750,11 +750,6 @@ def register_builtin_fetchers():
     if hasattr(playwright, 'playwright_plugin'):
         plugin_manager.register(playwright.playwright_plugin, 'builtin_playwright')
 
-    if hasattr(puppeteer, 'puppeteer_plugin'):
-        plugin_manager.register(puppeteer.puppeteer_plugin, 'builtin_puppeteer')
-
-    if hasattr(webdriver_selenium, 'webdriver_selenium_plugin'):
-        plugin_manager.register(webdriver_selenium.webdriver_selenium_plugin, 'builtin_webdriver_selenium')
 
 
 def register_builtin_api_plugins():

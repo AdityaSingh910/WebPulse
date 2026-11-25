@@ -9,6 +9,8 @@ $env:PYTHONIOENCODING = 'utf-8'
 Push-Location $pkg
 $out = & $Python -m pytest tests/unit -q -p no:cacheprovider -rfE 2>&1 | Out-String
 Pop-Location
+& $Python -I (Join-Path $PSScriptRoot 'check_templates.py') (Split-Path -Parent $PSScriptRoot)
+$templatesOk = ($LASTEXITCODE -eq 0)
 $known = Get-Content (Join-Path $PSScriptRoot 'known_windows_unit_failures.txt') | Where-Object { $_ -and -not $_.StartsWith('#') }
 $failed = [regex]::Matches($out, '(?m)^(?:FAILED|ERROR) (\S+)') | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
 $new = $failed | Where-Object { $_ -notin $known }
@@ -17,5 +19,5 @@ $summaryLine = if ($m.Count) { $m[$m.Count - 1].Groups[1].Value } else { '(no py
 Write-Host "UNIT: $summaryLine"
 Write-Host ("UNIT: known Windows-only failures: {0}, NEW failures: {1}" -f ($failed.Count - @($new).Count), @($new).Count)
 $new | ForEach-Object { Write-Host "  NEW FAILURE: $_" }
-if (@($new).Count -gt 0 -or -not $m.Count) { exit 1 }
+if (@($new).Count -gt 0 -or -not $m.Count -or -not $templatesOk) { exit 1 }
 exit 0

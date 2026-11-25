@@ -3,6 +3,7 @@
 #   1. core      fixture site + app instance with ALLOW_IANA_RESTRICTED_ADDRESSES=true (fixture is on 127.0.0.1)
 #   2. persist   same datastore, app restarted -> data must survive
 #   3. security  fresh instance WITHOUT the SSRF bypass and WITH a password (SALTED_PASS)
+#   4. browser   (-Browser) Playwright fetcher driving the Microsoft Edge that ships with Windows, over CDP
 #
 # The SSRF bypass is only ever set on the throw-away test instance in step 1; it is never set by run.ps1.
 #
@@ -14,7 +15,10 @@ param(
     [string]$ExpectNoUi = "",
     [int]$AppPort = 5055,
     [int]$SecPort = 5056,
-    [int]$FixturePort = 8099
+    [int]$FixturePort = 8099,
+    [switch]$Browser,              # also run the Playwright/Edge browser checks (B..)
+    [int]$BrowserAppPort = 5057,
+    [int]$CdpPort = 9223
 )
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
@@ -45,7 +49,7 @@ function Start-App([string]$datastore, [int]$port, [hashtable]$extraEnv, [string
     foreach ($k in $saved.Keys) { [Environment]::SetEnvironmentVariable($k, $saved[$k]) }
     return $p
 }
-function Run-Test([string]$mode, [string]$datastore, [string]$base, [string[]]$extra) {
+function Invoke-E2ETest([string]$mode, [string]$datastore, [string]$base, [string[]]$extra) {
     & $Python -I (Join-Path $PSScriptRoot 'test_e2e.py') $mode $datastore $base $fix $work @extra
     return $LASTEXITCODE
 }
@@ -58,29 +62,48 @@ try {
     Start-App $ds $AppPort @{ ALLOW_IANA_RESTRICTED_ADDRESSES = 'true' } 'core' | Out-Null
     $extra = @(); if ($ExpectRemoved) { $extra += "--expect-removed=$ExpectRemoved" }
     if ($ExpectNoUi) { $extra += "--expect-no-ui=$ExpectNoUi" }
-    $rc1 = Run-Test 'core' $ds "http://127.0.0.1:$AppPort" $extra
+    $null = Invoke-E2ETest 'core' $ds "http://127.0.0.1:$AppPort" $extra
     $summary.ram_mb_after_core = [math]::Round((Get-RamMB $AppPort), 1)
     Stop-ByCmd "*changedetection.py*-p $AppPort*"; Start-Sleep 3
 
     # ---- 2. persist (restart on same datastore) ----
     Start-App $ds $AppPort @{ ALLOW_IANA_RESTRICTED_ADDRESSES = 'true' } 'persist' | Out-Null
-    $rc2 = Run-Test 'persist' $ds "http://127.0.0.1:$AppPort" @()
+    $null = Invoke-E2ETest 'persist' $ds "http://127.0.0.1:$AppPort" @()
     Stop-ByCmd "*changedetection.py*-p $AppPort*"
 
     # ---- 3. security (SSRF protection ON, password ON) ----
     $pw = 'e2e-' + [guid]::NewGuid().ToString('N').Substring(0, 12)
     $salted = & $Python -I -c "import base64,hashlib,os,sys;s=os.urandom(32);print(base64.b64encode(s+hashlib.pbkdf2_hmac('sha256',sys.argv[1].encode(),s,100000)).decode())" $pw
     Start-App $dsSec $SecPort @{ SALTED_PASS = $salted } 'security' | Out-Null
-    $rc3 = Run-Test 'security' $dsSec "http://127.0.0.1:$SecPort" @("--password=$pw")
+    $null = Invoke-E2ETest 'security' $dsSec "http://127.0.0.1:$SecPort" @("--password=$pw")
     $summary.ram_mb_idle_security_instance = [math]::Round((Get-RamMB $SecPort), 1)
     Stop-ByCmd "*changedetection.py*-p $SecPort*"
+
+    # ---- 4. browser (optional): Playwright fetcher via headless Microsoft Edge over CDP ----
+    if ($Browser) {
+        $edge = @("${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe", "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe") |
+            Where-Object { Test-Path $_ } | Select-Object -First 1
+        $edgeProfile = Join-Path $work 'edge-profile'
+        Start-Process $edge -ArgumentList @('--headless=new', "--remote-debugging-port=$CdpPort", '--remote-debugging-address=127.0.0.1',
+            "--user-data-dir=$edgeProfile", '--no-first-run', '--disable-gpu', 'about:blank') -WindowStyle Hidden
+        $dsBrowser = Join-Path $work 'datastore-browser'; New-Item -ItemType Directory -Force $dsBrowser | Out-Null
+        for ($i = 0; $i -lt 20; $i++) { try { Invoke-RestMethod "http://127.0.0.1:$CdpPort/json/version" -TimeoutSec 2 | Out-Null; break } catch { Start-Sleep 1 } }
+        Start-App $dsBrowser $BrowserAppPort @{ ALLOW_IANA_RESTRICTED_ADDRESSES = 'true'; PLAYWRIGHT_DRIVER_URL = "http://127.0.0.1:$CdpPort" } 'browser' | Out-Null
+        $null = Invoke-E2ETest 'browser' $dsBrowser "http://127.0.0.1:$BrowserAppPort" @()
+        $summary.ram_mb_browser_instance_app_only = [math]::Round((Get-RamMB $BrowserAppPort), 1)
+        Stop-ByCmd "*changedetection.py*-p $BrowserAppPort*"
+    }
 }
 finally {
     Stop-ByCmd "*changedetection.py*-p $AppPort*"; Stop-ByCmd "*changedetection.py*-p $SecPort*"
     Stop-Process -Id $fixture.Id -Force -ErrorAction SilentlyContinue; Stop-ByCmd "*fixture_server.py*$FixturePort*"
+    Stop-ByCmd "*changedetection.py*-p $BrowserAppPort*"
+    Get-CimInstance Win32_Process -Filter "Name='msedge.exe'" | Where-Object { $_.CommandLine -like "*$work*edge-profile*" } |
+        ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 }
 $tot = 0; $pass = 0
-foreach ($m in 'core', 'persist', 'security') {
+$modes = @('core', 'persist', 'security'); if ($Browser) { $modes += 'browser' }
+foreach ($m in $modes) {
     $f = Join-Path $work "results_$m.json"
     if (Test-Path $f) { $j = Get-Content $f -Raw | ConvertFrom-Json; $summary["$m"] = "$($j.passed)/$($j.total)"; $tot += $j.total; $pass += $j.passed }
     else { $summary["$m"] = 'DID NOT RUN' }

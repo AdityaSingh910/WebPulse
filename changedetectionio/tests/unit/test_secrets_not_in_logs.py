@@ -86,17 +86,3 @@ def test_browser_address_for_logs_drops_the_token_and_proxy():
     assert browser_address_for_logs(url) == 'ws://browser.example:3000'
     assert browser_address_for_logs('wss://browser.example') == 'wss://browser.example'
 
-
-def test_puppeteer_connect_does_not_log_the_browser_token(log_lines):
-    from changedetectionio.content_fetchers.exceptions import BrowserConnectError
-    from changedetectionio.content_fetchers.puppeteer import fetcher
-
-    # Nothing listens there, the connection is refused straight away
-    browser = fetcher(custom_browser_connection_url=f'ws://127.0.0.1:1/?token={SECRET}')
-    with pytest.raises(BrowserConnectError) as error:
-        asyncio.run(browser.run(url='http://127.0.0.1:1/', watch_uuid='secret-test', fetch_favicon=False,
-                                current_include_filters=None, request_headers={}, request_method='GET', timeout=5))
-
-    assert any('Connecting to browser at ws://127.0.0.1:1' in line for line in log_lines)
-    assert not [line for line in log_lines if SECRET in line], "The browser token was logged"
-    assert SECRET not in str(error.value.msg)

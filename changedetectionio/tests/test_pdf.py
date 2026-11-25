@@ -87,8 +87,12 @@ def test_fetch_pdf(client, live_server, measure_memory_usage, datastore_path):
 def test_pdf_fetcher_resolution(client, live_server, measure_memory_usage, datastore_path, monkeypatch):
     # PDF watches only get moved to html_requests when the chosen fetcher can't supply the original PDF
     from changedetectionio import content_fetchers
-    from changedetectionio.content_fetchers.puppeteer import fetcher as puppeteer_fetcher
-    from changedetectionio.content_fetchers.webdriver_selenium import fetcher as selenium_fetcher
+    # Simplified fork: Selenium/Puppeteer were removed. Playwright (no original-PDF support) and a stub
+    # browser fetcher that does support PDFs cover the same two branches.
+    from changedetectionio.content_fetchers.playwright import fetcher as no_pdf_browser_fetcher
+
+    class pdf_capable_browser_fetcher(no_pdf_browser_fetcher):
+        supports_pdf = True
 
     datastore = client.application.config.get('DATASTORE')
     uuid = datastore.add_watch(url='http://example.com/some-document', extras={'fetch_backend': 'html_webdriver'})
@@ -96,15 +100,15 @@ def test_pdf_fetcher_resolution(client, live_server, measure_memory_usage, datas
     watch['content-type'] = 'application/pdf'
     assert watch.is_pdf
 
-    monkeypatch.setattr(content_fetchers, 'html_webdriver', selenium_fetcher)
+    monkeypatch.setattr(content_fetchers, 'html_webdriver', no_pdf_browser_fetcher)
     _, backend_name, _ = content_fetchers.resolve_content_fetcher(watch, datastore)
     assert backend_name == 'html_requests'
     assert watch.get_fetch_backend == 'html_requests'
 
-    monkeypatch.setattr(content_fetchers, 'html_webdriver', puppeteer_fetcher)
+    monkeypatch.setattr(content_fetchers, 'html_webdriver', pdf_capable_browser_fetcher)
     fetcher_class, backend_name, _ = content_fetchers.resolve_content_fetcher(watch, datastore)
     assert backend_name == 'html_webdriver'
-    assert fetcher_class is puppeteer_fetcher
+    assert fetcher_class is pdf_capable_browser_fetcher
     assert watch.get_fetch_backend == 'html_webdriver'
 
 

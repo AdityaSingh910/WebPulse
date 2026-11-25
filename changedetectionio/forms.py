@@ -1076,7 +1076,7 @@ class SingleExtraBrowser(Form):
 
 class DefaultUAInputForm(Form):
     html_requests = StringField(_l('Plaintext requests'), validators=[validators.Optional()], render_kw={"placeholder": "<default>"})
-    if os.getenv("PLAYWRIGHT_DRIVER_URL") or os.getenv("WEBDRIVER_URL"):
+    if os.getenv("PLAYWRIGHT_DRIVER_URL"):
         html_webdriver = StringField(_l('Chrome requests'), validators=[validators.Optional()], render_kw={"placeholder": "<default>"})
 
 # datastore.data['settings']['requests']..

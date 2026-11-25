@@ -304,8 +304,49 @@ def mode_security():
         check(cid, f'SSRF blocked at fetch: {target}', int(w.get('history_n') or 0) == 0 and w.get('last_error'), w.get('last_error'))
 
 
+def mode_browser():
+    """Needs PLAYWRIGHT_DRIVER_URL on the app (headless Edge/Chrome over CDP) + the SSRF bypass for the fixture."""
+    api = make_api(api_key())
+    requests.post(FIX + '/set?price=499.00&stock=InStock&text=Version+one+of+the+page.')
+    r = api('POST', '/watch', json={'url': FIX + '/js.html', 'title': 'JS via browser', 'fetch_backend': 'html_webdriver'})
+    check('B01', 'Create watch using the Playwright (html_webdriver) fetcher', r.status_code in (200, 201), r.text[:100])
+    js_uuid = r.json().get('uuid')
+    r = api('POST', '/watch', json={'url': FIX + '/js.html?plain=1', 'title': 'JS via requests', 'fetch_backend': 'html_requests'})
+    plain_uuid = r.json().get('uuid')
+    r = api('POST', '/watch', json={'url': FIX + '/js-product.html', 'title': 'JS product', 'processor': 'restock_diff',
+                                   'fetch_backend': 'html_webdriver'})
+    jsprod_uuid = r.json().get('uuid')
+
+    w = wait_checked(api, js_uuid, 1, timeout=120)
+    ts = sorted(api('GET', f'/watch/{js_uuid}/history').json().keys())
+    snap = api('GET', f'/watch/{js_uuid}/history/{ts[-1]}').text if ts else ''
+    check('B02', 'Browser fetch executes JavaScript', 'Rendered by JavaScript' in snap, f"err={w.get('last_error')} snap={snap[:80]!r}")
+    wait_checked(api, plain_uuid, 1)
+    ts2 = sorted(api('GET', f'/watch/{plain_uuid}/history').json().keys())
+    snap2 = api('GET', f'/watch/{plain_uuid}/history/{ts2[-1]}').text if ts2 else ''
+    check('B03', 'Control: plain HTTP fetch does NOT see JS content', 'Loading...' in snap2 and 'Rendered by JavaScript' not in snap2, snap2[:80])
+    w = wait_checked(api, jsprod_uuid, 1, timeout=120)
+    rs = w.get('processor_state_restock_diff') or {}
+    check('B04', 'Price injected by JavaScript extracted via browser', rs.get('price') == 499.0 and rs.get('in_stock') is True, f"{json.dumps(rs)} err={w.get('last_error')}")
+    check('B05', 'Browser screenshot saved', os.path.isfile(os.path.join(DS, js_uuid, 'last-screenshot.png')))
+    check('B06', 'Visual-selector element data saved', os.path.isfile(os.path.join(DS, js_uuid, 'elements.deflate')))
+
+    # change detection through the browser
+    requests.post(FIX + '/set?text=Version+two+-+BIG+NEWS.')
+    time.sleep(1.2)
+    api('GET', f'/watch/{js_uuid}?recheck=1')
+    w = wait_checked(api, js_uuid, 2, timeout=120)
+    ts = sorted(api('GET', f'/watch/{js_uuid}/history').json().keys())
+    d = api('GET', f'/watch/{js_uuid}/difference/{ts[0]}/{ts[-1]}').text if len(ts) >= 2 else ''
+    check('B07', 'Change detected on a JS-rendered page', 'BIG NEWS' in d, d[:100].replace('\n', ' | '))
+    s = requests.Session()
+    r = s.get(f'{BASE}/edit/{js_uuid}', timeout=30)
+    check('B08', 'Edit page offers the browser tools (Visual Selector / Browser Steps)',
+          r.status_code == 200 and 'visualselector' in r.text and 'browser-steps' in r.text, r.status_code)
+
+
 if not wait_up():
     print('App did not come up')
     sys.exit(2)
-{'core': mode_core, 'persist': mode_persist, 'security': mode_security}[MODE]()
+{'core': mode_core, 'persist': mode_persist, 'security': mode_security, 'browser': mode_browser}[MODE]()
 finish()

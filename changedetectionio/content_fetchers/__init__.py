@@ -132,7 +132,6 @@ def resolve_content_fetcher(watch, datastore):
       - 'system'                    -> global application default
       - 'extra_browser_<key>'       -> html_webdriver + custom connection URL
       - is_pdf watch                -> html_requests, unless the fetcher has supports_pdf
-      - html_webdriver + browser_steps -> playwright override (puppeteer steps incomplete)
 
     Returns:
         tuple: (fetcher_class, backend_name, custom_browser_connection_url)
@@ -161,16 +160,7 @@ def resolve_content_fetcher(watch, datastore):
 
     # Grab the right kind of 'fetcher' class (playwright, requests, plugin-provided, etc)
     if prefer_fetch_backend and hasattr(this_module, prefer_fetch_backend):
-        # @todo TEMPORARY HACK - SWITCH BACK TO PLAYWRIGHT FOR BROWSERSTEPS
-        if prefer_fetch_backend == 'html_webdriver' and getattr(watch, 'has_browser_steps', False):
-            # This is never supported in selenium anyway
-            logger.warning(
-                "Using playwright fetcher override for possible puppeteer request in browsersteps, "
-                "because puppetteer:browser steps is incomplete.")
-            from changedetectionio.content_fetchers.playwright import fetcher as playwright_fetcher
-            fetcher_obj = playwright_fetcher
-        else:
-            fetcher_obj = getattr(this_module, prefer_fetch_backend)
+        fetcher_obj = getattr(this_module, prefer_fetch_backend)
     else:
         # What it referenced doesn't exist, just use a default
         fetcher_obj = getattr(this_module, "html_requests")
@@ -190,21 +180,11 @@ def resolve_content_fetcher(watch, datastore):
     return fetcher_obj, prefer_fetch_backend, custom_browser_connection_url
 
 
-# Decide which is the 'real' HTML webdriver, this is more a system wide config
-# rather than site-specific.
-use_playwright_as_chrome_fetcher = os.getenv('PLAYWRIGHT_DRIVER_URL', False)
-if use_playwright_as_chrome_fetcher:
-    # @note - For now, browser steps always uses playwright
-    if not strtobool(os.getenv('FAST_PUPPETEER_CHROME_FETCHER', 'False')):
-        logger.debug('Using Playwright library as fetcher')
-        from .playwright import fetcher as html_webdriver
-    else:
-        logger.debug('Using direct Python Puppeteer library as fetcher')
-        from .puppeteer import fetcher as html_webdriver
-
-else:
-    logger.debug("Falling back to selenium as fetcher")
-    from .webdriver_selenium import fetcher as html_webdriver
+# The 'Chrome/Javascript' fetcher. Simplified fork: Playwright is the only browser fetcher (the
+# Selenium/WebDriver and Puppeteer alternatives were removed). It connects over CDP to the browser
+# at PLAYWRIGHT_DRIVER_URL, e.g. the Microsoft Edge that ships with Windows (see run.ps1 -Browser).
+# The playwright package itself is only imported when a browser fetch actually runs.
+from .playwright import fetcher as html_webdriver
 
 
 # Register built-in fetchers as plugins after all imports are complete

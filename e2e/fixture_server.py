@@ -54,6 +54,19 @@ class Handler(BaseHTTPRequestHandler):
         elif u.path == '/page.html':
             self._send(f"<html><head><title>News page</title></head><body><h1>News</h1>"
                        f"<p>{s['text']}</p></body></html>")
+        elif u.path == '/js.html':
+            # Content only exists after JavaScript runs - a plain HTTP fetch sees just the placeholder
+            self._send("<html><head><title>JS page</title></head><body><div id='app'>Loading...</div>"
+                       "<script>document.getElementById('app').innerHTML = '<p>' + ['Rendered','by','JavaScript'].join(' ')"
+                       f" + ' - {s['text']}</p>';</script></body></html>")
+        elif u.path == '/js-product.html':
+            # schema.org price data injected by JavaScript (only a real browser sees it)
+            ld = json.dumps({"@context": "https://schema.org", "@type": "Product", "name": "JS Headphones",
+                             "offers": {"@type": "Offer", "price": s['price'], "priceCurrency": "INR",
+                                        "availability": "https://schema.org/" + s['stock']}})
+            self._send("<html><head><title>JS Headphones</title></head><body><h1>JS Headphones</h1><script>"
+                       "var e=document.createElement('script');e.type='application/ld+json';"
+                       f"e.text={json.dumps(ld)};document.head.appendChild(e);</script></body></html>")
         elif u.path == '/slow.html':
             time.sleep(float(q.get('d', ['2'])[0]))
             self._send(f"<html><body><p>Slow page {q.get('n', ['0'])[0]} at {time.time()}</p></body></html>")
