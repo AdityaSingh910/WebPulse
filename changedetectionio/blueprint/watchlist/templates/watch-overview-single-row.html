@@ -48,7 +48,9 @@
                     </div>
                 </td>
                 <td class="watch-processor">
-                    {%- if watch['processor'] and watch['processor'] in processor_badge_texts -%}
+                    {%- if job_listings_tag_uuid and job_listings_tag_uuid in (watch.get('tags') or []) and watch['processor'] != 'restock_diff' -%}
+                        <a href="{{ url_for('watchlist.index', tag=job_listings_group) }}" class="processor-badge processor-badge-jobs" title="{{ _('Job listing monitoring') }}">{{ _('Jobs') }}</a>
+                    {%- elif watch['processor'] and watch['processor'] in processor_badge_texts -%}
                         <a href="{{ url_for('watchlist.index', tag=active_tag_uuid, processor=watch['processor']) }}"  class="processor-badge processor-badge-{{ watch['processor'] }}{{ ' active' if active_processor == watch['processor'] else '' }}"
                            title="{{ processor_descriptions.get(watch['processor'], watch['processor']) }}">{{ processor_badge_texts[watch['processor']] }}</a>
                     {%- endif -%}

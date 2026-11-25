@@ -881,10 +881,10 @@ class commonSettingsForm(Form):
     def __init__(self, formdata=None, obj=None, prefix="", data=None, meta=None, **kwargs):
         super().__init__(formdata, obj, prefix, data, meta, **kwargs)
 
-    fetch_backend = RadioField(_l('Fetch Method'), choices=content_fetchers.available_fetchers(), validators=[ValidateContentFetcherIsReady()])
-    processor = RadioField( label=_l("Processor - What do you want to achieve?"), choices=lambda: processors.available_processors(), default=processors.get_default_processor)
+    fetch_backend = RadioField(_l('How to read the page'), choices=content_fetchers.available_fetchers(), validators=[ValidateContentFetcherIsReady()])
+    processor = RadioField( label=_l("What should WebPulse look for?"), choices=lambda: processors.available_processors(), default=processors.get_default_processor)
     scheduler_timezone_default = StringField(_l("Default timezone for watch check scheduler"), render_kw={"list": "timezones"}, validators=[validateTimeZoneName()])
-    webdriver_delay = IntegerField(_l('Wait seconds before extracting text'), validators=[validators.Optional(), validators.NumberRange(min=1, message=_l("Should contain one or more seconds"))])
+    webdriver_delay = IntegerField(_l('Seconds to wait for the page to finish loading'), validators=[validators.Optional(), validators.NumberRange(min=1, message=_l("Should contain one or more seconds"))])
 
 # Not true anymore but keep the validate_ hook for future use, we convert color tags
 #    def validate_notification_urls(self, field):
@@ -937,13 +937,13 @@ class SingleBrowserStep(Form):
 
 class processor_text_json_diff_form(commonSettingsForm, commonNotificationSettingsForm):
 
-    url = StringField(_l('Web Page URL'), validators=[validateURL()])
-    link_to_open = StringField(_l('Open Link Override'), validators=[validators.Optional(), validateURL()], default='')
-    tags = StringTagUUID(_l('Group Tag'), [validators.Optional()], default='')
+    url = StringField(_l('Web address'), validators=[validateURL()])
+    link_to_open = StringField(_l('Link to open instead (optional)'), validators=[validators.Optional(), validateURL()], default='')
+    tags = StringTagUUID(_l('Group'), [validators.Optional()], default='')
 
     time_between_check = EnhancedFormField(
         TimeBetweenCheckForm,
-        label=_l('Time Between Check'),
+        label=_l('Check every'),
         conditional_field='time_between_check_use_default',
         conditional_message=REQUIRE_ATLEAST_ONE_TIME_PART_WHEN_NOT_GLOBAL_DEFAULT,
         conditional_test_function=validate_time_between_check_has_values
@@ -951,9 +951,9 @@ class processor_text_json_diff_form(commonSettingsForm, commonNotificationSettin
 
     time_schedule_limit = FormField(ScheduleLimitForm)
 
-    time_between_check_use_default = BooleanField(_l('Use global settings for time between check and scheduler.'), default=False)
+    time_between_check_use_default = BooleanField(_l('Use the default check interval from Settings'), default=False)
 
-    include_filters = StringListField(_l('CSS/JSONPath/JQ/XPath Filters'), [ValidateCSSJSONXPATHInput()], default='')
+    include_filters = StringListField(_l('Only watch this part of the page (CSS, XPath or JSONPath)'), [ValidateCSSJSONXPATHInput()], default='')
 
     subtractive_selectors = StringListField(_l('Remove elements'), [ValidateCSSJSONXPATHInput(allow_json=False)])
 
@@ -986,16 +986,16 @@ class processor_text_json_diff_form(commonSettingsForm, commonNotificationSettin
 
     proxy = RadioField(_l('Proxy'))
     # filter_failure_notification_send @todo make ternary
-    filter_failure_notification_send = BooleanField(_l('Send a notification when the filter can no longer be found on the page'), default=False)
+    filter_failure_notification_send = BooleanField(_l('Alert me if that part of the page can no longer be found'), default=False)
     notification_muted = TernaryNoneBooleanField(_l('Notifications'), default=None, yes_text=_l("Muted"), no_text=_l("On"))
     notification_screenshot = BooleanField(_l('Attach screenshot to notification (where possible)'), default=False)
 
     # TRANSLATORS: Label for the setting combining condition rules with AND/OR. Noun; not the verb 'to match'.
     conditions_match_logic = RadioField(lazy_pgettext('condition', 'Match'), choices=[('ALL', _l('Match all of the following')),('ANY', _l('Match any of the following'))], default='ALL')
     conditions = FieldList(FormField(ConditionFormRow), min_entries=1)  # Add rule logic here
-    use_page_title_in_list = TernaryNoneBooleanField(_l('Use page <title> in list'), default=None)
+    use_page_title_in_list = TernaryNoneBooleanField(_l('Show the page’s own title in the list'), default=None)
 
-    history_snapshot_max_length = IntegerField(_l('Number of history items per watch to keep'), render_kw={"style": "width: 5em;"}, validators=[validators.Optional(), validators.NumberRange(min=2)])
+    history_snapshot_max_length = IntegerField(_l('Page versions to keep per website'), render_kw={"style": "width: 5em;"}, validators=[validators.Optional(), validators.NumberRange(min=2)])
 
     def extra_tab_content(self):
         return None
@@ -1082,19 +1082,19 @@ class DefaultUAInputForm(Form):
 
 # datastore.data['settings']['requests']..
 class globalSettingsRequestForm(Form):
-    time_between_check = RequiredFormField(TimeBetweenCheckForm, label=_l('Time Between Check'))
+    time_between_check = RequiredFormField(TimeBetweenCheckForm, label=_l('Check every'))
     time_schedule_limit = FormField(ScheduleLimitForm)
     proxy = RadioField(_l('Default proxy'))
-    jitter_seconds = IntegerField(_l('Random jitter seconds ± check'),
+    jitter_seconds = IntegerField(_l('Random variation of the check time (seconds)'),
                                   render_kw={"style": "width: 5em;"},
                                   validators=[validators.NumberRange(min=0, message=_l("Should contain zero or more seconds"))])
     
-    workers = IntegerField(_l('Number of fetch workers'),
+    workers = IntegerField(_l('Pages checked at the same time (workers)'),
                           render_kw={"style": "width: 5em;"},
                           validators=[validators.NumberRange(min=1, max=50,
                                                              message=_l("Should be between 1 and 50"))])
 
-    timeout = IntegerField(_l('Requests timeout in seconds'),
+    timeout = IntegerField(_l('Give up on a page after (seconds)'),
                            render_kw={"style": "width: 5em;"},
                            validators=[validators.NumberRange(min=1, max=999,
                                                               message=_l("Should be between 1 and 999"))])
@@ -1115,7 +1115,7 @@ class globalSettingsApplicationUIForm(Form):
     open_diff_in_new_tab = BooleanField(_l("Open 'History' page in a new tab"), default=True, validators=[validators.Optional()])
     socket_io_enabled = BooleanField(_l('Realtime UI Updates Enabled'), default=True, validators=[validators.Optional()])
     favicons_enabled = BooleanField(_l('Favicons Enabled'), default=True, validators=[validators.Optional()])
-    use_page_title_in_list = BooleanField(_l('Use page <title> in watch overview list')) #BooleanField=True
+    use_page_title_in_list = BooleanField(_l('Show each page’s own title in the list')) #BooleanField=True
     timeago_format = SelectField(_l('Relative time format'),
                                  choices=[('long', _l('Long (1 minute ago)')), ('short', _l('Short (1m ago)'))],
                                  default='long', validators=[validators.Optional()])
@@ -1126,8 +1126,8 @@ class globalSettingsApplicationUIForm(Form):
 class globalSettingsApplicationForm(commonSettingsForm):
 
     api_access_token_enabled = BooleanField(_l('API access token security check enabled'), default=True, validators=[validators.Optional()])
-    empty_pages_are_a_change =  BooleanField(_l('Treat empty pages as a change?'), default=False)
-    fetch_backend = RadioField(_l('Fetch Method'), default="html_requests", choices=content_fetchers.available_fetchers(), validators=[ValidateContentFetcherIsReady()])
+    empty_pages_are_a_change =  BooleanField(_l('Count an empty page as a change'), default=False)
+    fetch_backend = RadioField(_l('How to read the page'), default="html_requests", choices=content_fetchers.available_fetchers(), validators=[ValidateContentFetcherIsReady()])
     global_ignore_text = StringListField(_l('Ignore Text'), [ValidateListRegex()])
     global_subtractive_selectors = StringListField(_l('Remove elements'), [ValidateCSSJSONXPATHInput(allow_json=False)])
     ignore_whitespace = BooleanField(_l('Ignore whitespace'))
@@ -1151,16 +1151,16 @@ class globalSettingsApplicationForm(commonSettingsForm):
 
     removepassword_button = SubmitField(_l('Remove password'), render_kw={"class": "pure-button pure-button-primary"})
     render_anchor_tag_content = BooleanField(_l('Render anchor tag content'), default=False)
-    shared_diff_access = BooleanField(_l('Allow anonymous access to watch history page when password is enabled'), default=False, validators=[validators.Optional()])
+    shared_diff_access = BooleanField(_l('Let people without the password open change-history pages'), default=False, validators=[validators.Optional()])
     strip_ignored_lines = BooleanField(_l('Strip ignored lines'))
     rss_reader_mode = BooleanField(_l('Enable RSS reader mode '), default=False, validators=[validators.Optional()])
 
-    filter_failure_notification_threshold_attempts = IntegerField(_l('Number of times the filter can be missing before sending a notification'),
+    filter_failure_notification_threshold_attempts = IntegerField(_l('Alert after this many checks in which the chosen part of the page is missing'),
                                                                   render_kw={"style": "width: 5em;"},
                                                                   validators=[validators.NumberRange(min=0,
                                                                                                      message=_l("Should contain zero or more attempts"))])
 
-    history_snapshot_max_length = IntegerField(_l('Number of history items per watch to keep'), render_kw={"style": "width: 5em;"}, validators=[validators.Optional(), validators.NumberRange(min=2)])
+    history_snapshot_max_length = IntegerField(_l('Page versions to keep per website'), render_kw={"style": "width: 5em;"}, validators=[validators.Optional(), validators.NumberRange(min=2)])
     ui = FormField(globalSettingsApplicationUIForm)
 
 

@@ -257,3 +257,40 @@ Both are present in upstream too.
   price is tracked.
 * The upstream integration tests that assert old notification titles or the upstream avatar URL would need
   updating. They are Linux-only, so they were not run here.
+
+---
+
+## 9. Use-case dashboard, Email/Telegram, job listings and honest demonstrations (Phase 11)
+
+The full change list is in CHANGES.md, Phase 11. The engine, processors, datastore format, scheduler, workers and
+API are unchanged.
+
+| Area | Result |
+|---|---|
+| Navigation | Home, Websites, Products, Job listings, Notifications, Controlled demo, Settings. The "Advanced" menu is removed; its pages are reachable from Settings → "More tools" and Home → "Behind the scenes" |
+| Home | Six use-case cards (website, price, stock, jobs, price analytics, notifications), plus one compact "Behind the scenes" row |
+| Settings / edit page | Only everyday options are visible; "Show technical settings/options" reveals the rest, and all fields are still saved |
+| Notifications | Email and Telegram only, each with "Save and send test". The 150-service Apprise picker is no longer shown. Secrets are never sent back to the browser. A notification history, masked and kept across restarts, is stored in the datastore |
+| Job listings | The existing text watcher in the group "Job listings", with a CSS selector and whole-word keywords. No new backend |
+| Demonstrations | The "[Sample data]" watches with simulated history were removed. Real Indian shops and public job boards were added, plus a clearly labelled Controlled demo page that changes only the local demo site |
+| Security | The demo page only talks to `http://127.0.0.1:<port>` given by `run.ps1`. The demo site cannot be used to forward requests (U34). The demo proxy is never chosen automatically. SSRF protection is unchanged (S06–S08 pass) |
+| Bugs fixed (also upstream) | Preview of a watch with no saved version returned HTTP 500; `visual-selector.js` threw an error on edit pages without a screenshot |
+| Tests | **95/95** e2e (40 core, 5 persistence, 8 security, 8 browser, 34 UI); unit 430 passed, 0 new failures; templates 35/35; imports 52/52; RAM after the core workload 123.4 MB |
+
+**Real monitoring, first check on 25 Nov 2026:**
+* Decathlon India: ₹799, in stock, read both directly and with Edge;
+* Sleepy Owl enamel mug: ₹564, out of stock;
+* boAt Stone 650: ₹1,999, out of stock;
+* HackerRank: 17 technical job titles;
+* Meesho: 10 technical job titles;
+* python.org job board: 22 jobs.
+
+Amazon.in and Flipkart were not used: their robots.txt and terms forbid automated access.
+
+**Limitations:**
+* Shopify shops (boAt, Sleepy Owl) may show a bot check after several requests in a short time. WebPulse does
+  not bypass it; that check records an error.
+* Delivery of Email and Telegram depends on credentials the user provides. The automated tests check URL building,
+  masking and webhook delivery; real delivery is confirmed by the user's own test message.
+* Custom SMTP servers log in with the part of the address before the @. Gmail, Outlook, Yahoo and Zoho are
+  configured automatically.

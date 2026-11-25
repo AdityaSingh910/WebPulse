@@ -40,29 +40,30 @@
 
 <div class="edit-form monospaced-textarea">
 
-    <div class="tabs collapsable">
+    <div class="tabs collapsable wp-tabs-tech">
         <ul>
             <li class="tab"><a href="#general">{{ _('General') }}</a></li>
             {% if extra_tab_content %}
             <li class="tab"><a href="#extras_tab">{{ extra_tab_content }}</a></li>
             {% endif %}
-            <li class="tab"><a href="#notifications">{{ _('Notifications') }}</a></li>
+            <li class="tab"><a href="#notifications">{{ _('Alerts') }}</a></li>
             <li class="tab"><a href="#stats">{{ _('Check history') }}</a></li>
-            <li class="wp-tab-label" aria-hidden="true">{{ _('Advanced') }}</li>
+            <li class="wp-tab-toggle"><button type="button" class="wp-btn wp-btn--ghost wp-btn--sm" data-wp-tech-toggle
+                data-show-label="{{ _('Show technical options') }}" data-hide-label="{{ _('Hide technical options') }}">{{ _('Show technical options') }}</button></li>
             {% if capabilities.supports_text_filters_and_triggers %}
-            <li class="tab" id="filters-and-triggers-tab"><a href="#filters-and-triggers">{{ _('Filters & Triggers') }}</a></li>
+            <li class="tab wp-tab-tech" id="filters-and-triggers-tab"><a href="#filters-and-triggers">{{ _('Page section & filters') }}</a></li>
             {% endif %}
             {% if capabilities.supports_request_type %}
-            <li class="tab"><a href="#request">{{ _('Request') }}</a></li>
+            <li class="tab wp-tab-tech"><a href="#request">{{ _('Page reading') }}</a></li>
             {% endif %}
             {% if capabilities.supports_visual_selector %}
-            <li class="tab"><a id="visualselector-tab" href="#visualselector">{{ _('Visual Filter Selector') }}</a></li>
+            <li class="tab wp-tab-tech"><a id="visualselector-tab" href="#visualselector">{{ _('Pick on the page') }}</a></li>
             {% endif %}
             {% if capabilities.supports_browser_steps %}
-            <li class="tab"><a id="browsersteps-tab" href="#browser-steps">{{ _('Browser Steps') }}</a></li>
+            <li class="tab wp-tab-tech"><a id="browsersteps-tab" href="#browser-steps">{{ _('Browser steps') }}</a></li>
             {% endif %}
             {% if capabilities.supports_text_filters_and_triggers %}
-            <li class="tab" id="conditions-tab"><a href="#conditions">{{ _('Conditions') }}</a></li>
+            <li class="tab wp-tab-tech" id="conditions-tab"><a href="#conditions">{{ _('Conditions') }}</a></li>
             {% endif %}
         </ul>
     </div>
@@ -76,13 +77,11 @@
                 <fieldset>
                     <div class="pure-control-group">
                         {{ render_field(form.url, placeholder="https://...", required=true, class="m-d") }}
-                        {# TRANSLATORS: FIXME: fragment msgids (#4074) #}
-                        <div class="pure-form-message">{{ _('Some sites use JavaScript to create the content, for this you should') }} {{ _('use the Chrome/Javascript (Playwright) fetcher.') }}</div>
-                        <div class="pure-form-message">{{ _('Variables are supported in the URL') }}.</div>
+                        <div class="pure-form-message">{{ _('The page WebPulse checks. If its content is built by JavaScript, choose “Open the page in a real browser” under Show technical options → Page reading.') }}</div>
                     </div>
                     <div class="pure-control-group">
-                        {{ render_field(form.tags) }}
-                        <span class="pure-form-message-inline">{{ _('Organisational tag/group name used in the main listing page') }}</span>
+                        {{ render_field(form.tags, class="m-d") }}
+                        <span class="pure-form-message-inline">{{ _('Optional. Websites in the group “Job listings” appear under Job listings.') }}</span>
                         {% if auto_applied_tags %}
                         <span class="pure-form-message-inline">
                             {{ _('Also automatically applied by URL pattern:') }}
@@ -97,20 +96,29 @@
                     </div>
                     <div class="pure-control-group">
                         {{ render_field(form.title, class="m-d", placeholder=watch.label) }}
-                        <span class="pure-form-message-inline">{{ _('Automatically uses the page title if found, you can also use your own title/description here') }}</span>
+                        <span class="pure-form-message-inline">{{ _('Leave empty to use the page’s own title.') }}</span>
                     </div>
                     <div class="pure-control-group">
                         <details class="form-wrapper">
-                            <summary>{{ _('Extra Page Title and Link options') }}</summary>
+                            <summary>{{ _('More options') }}</summary>
                             <br>
                             <div class=" border-fieldset">
                                 <div class="pure-control-group">
                                     {{ render_field(form.link_to_open, placeholder="https://...", class="m-d") }}
-                                    <span class="pure-form-message-inline">{{ _('Optional - links in the list, history and notifications open this URL instead. Does not change the URL being checked.') }}</span>
+                                    <span class="pure-form-message-inline">{{ _('Links in the list, history and alerts open this address instead. The checked address does not change.') }}</span>
                                 </div>
                                 <div class="pure-control-group">
                                     {{ render_ternary_field(form.use_page_title_in_list) }}
                                 </div>
+                    <div class="pure-control-group">
+                        {{ render_field(form.history_snapshot_max_length, class="history_snapshot_max_length") }}
+                        <span class="pure-form-message-inline">{{ _('How many versions of this page to keep.') }}
+                        <br>
+                        {{ _('Leave empty to use the default from Settings.') }}
+                        </span>
+                    </div>
+
+
                             </div>
                         </details>
 
@@ -124,7 +132,7 @@
                             {{ render_field(form.time_between_check, class="time-check-widget") }}
 
                             <span class="pure-form-message-inline">
-                             {{ _('The interval/amount of time between each check.') }}
+                             {{ _('How often WebPulse checks this website.') }}
                             </span>
                         </div>
                         <div id="time-between-check-schedule">
@@ -135,14 +143,6 @@
                         </div>
 <br>
               </div>
-                    <div class="pure-control-group">
-                        {{ render_field(form.history_snapshot_max_length, class="history_snapshot_max_length") }}
-                        <span class="pure-form-message-inline">{{ _('Limit collection of history snapshots for each watch to this number of history items.') }}
-                        <br>
-                        {{ _('Set to empty to use system settings default') }}
-                        </span>
-                    </div>
-
                 </fieldset>
             </div>
 
@@ -151,8 +151,7 @@
                     <div class="pure-control-group inline-radio">
                         {{ render_field(form.fetch_backend, class="fetch-backend") }}
                         <span class="pure-form-message-inline">
-                            <p>{{ _('Use the <strong>Basic</strong> method (default) where your watched sites don\'t need Javascript to render.')|safe }}</p>
-                            <p>{{ _('The <strong>Chrome/Javascript</strong> method requires a network connection to a running Chrome/Edge browser over CDP (Playwright), set by the PLAYWRIGHT_DRIVER_URL ENV var - on Windows use run.ps1 -Browser.')|safe }}</p>
+                            <p>{{ _('Reading a page directly is fast and works for most pages. Pages whose content is built by JavaScript need a real browser; run.ps1 starts a hidden Microsoft Edge for this.') }}</p>
                         </span>
                     </div>
                 {% if form.proxy %}
@@ -301,26 +300,24 @@ Math: {{ 1 + 1 }}") }}
                     <div class="pure-control-group inline-radio">
                       {{ render_checkbox_field(form.notification_screenshot) }}
                         <span class="pure-form-message-inline">
-                            <strong>{{ _('Use with caution!') }}</strong> {{ _('This will easily fill up your email storage quota or flood other storages.') }}
+                            {{ _('Screenshots make every alert much larger.') }}
                         </span>
                     </div>
                     {% endif %}
                     <div class="pure-control-group">
                         {{ render_checkbox_field(form.filter_failure_notification_send) }}
                         <span class="pure-form-message-inline">
-                         {{ _('Sends a notification when the filter can no longer be seen on the page, good for knowing when the page changed and your filter will not work anymore.') }}
+                         {{ _('Only for websites set to watch one part of a page: tells you when the page layout changed so that part can no longer be found.') }}
                         </span>
                     </div>
+                    <p class="wp-note"><i data-feather="bell"></i>{{ _('Alerts for this website go to the Email / Telegram set up on the') }}&nbsp;<a href="{{ url_for('settings.notifications.index') }}">{{ _('Notifications page') }}</a>.</p>
+                    <details class="wp-more" {% if watch.get('notification_urls') %}open{% endif %}>
+                      <summary>{{ _('Advanced: send this website’s alerts somewhere else, or change their wording') }}</summary>
                     <div class="field-group" id="notification-field-group">
-                        {% if has_default_notification_urls %}
-                        <div class="inline-warning">
-                            <img class="inline-warning-icon" src="{{url_for('static_content', group='images', filename='notice.svg')}}" alt="{{ _('Look out!') }}" title="{{ _('Lookout!') }}" >
-                            {{ _('There are <a href="%(url)s">system-wide notification URLs enabled</a>, this form will override notification settings for this watch only &dash; an empty Notification URL list here will still send notifications.', url=url_for('settings.notifications.apprise'))|safe }}
-                        </div>
-                        {% endif %}
-                        <a href="#notifications" id="notification-setting-reset-to-default" class="pure-button button-xsmall" style="right: 20px; top: 20px; position: absolute; background-color: #5f42dd; border-radius: 4px; font-size: 70%; color: #fff">{{ _('Use system defaults') }}</a>
+                        <a href="#notifications" id="notification-setting-reset-to-default" class="pure-button button-xsmall" style="float: right">{{ _('Use the defaults') }}</a>
                         {{ render_common_settings_form(form, emailprefix, settings_application, extra_notification_token_placeholder_info) }}
                     </div>
+                    </details>
                 </fieldset>
             </div>
 

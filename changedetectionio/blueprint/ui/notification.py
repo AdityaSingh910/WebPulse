@@ -1,3 +1,4 @@
+# Modified 2026 for the simplified (academic) fork of changedetection.io - optional features removed, see CHANGES.md
 from flask import Blueprint, request, make_response
 import random
 from loguru import logger
@@ -118,10 +119,15 @@ def construct_blueprint(datastore: ChangeDetectionStore):
 
 
             sent_obj = process_notification(n_object, datastore)
+            from changedetectionio.notification import history as notification_history
+            notification_history.record(datastore.datastore_path, notification_urls, ok=True, kind='test',
+                                        title=(sent_obj or [{}])[0].get('title', '') if sent_obj else '', watch=watch)
 
         except Exception as e:
             logger.error(e)
-            e_str = str(e)
+            from changedetectionio.notification import history as notification_history
+            notification_history.record(datastore.datastore_path, notification_urls, ok=False, kind='test', error=str(e), watch=watch)
+            e_str = notification_history.clean_error(str(e), notification_urls)
             # Remove this text which is not important and floods the container
             e_str = e_str.replace(
                 "DEBUG - <class 'apprise.decorators.base.CustomNotifyPlugin.instantiate_plugin.<locals>.CustomNotifyPluginWrapper'>",

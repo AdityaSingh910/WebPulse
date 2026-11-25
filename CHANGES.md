@@ -281,3 +281,213 @@ This phase changes presentation only. Existing endpoints, forms and helpers are 
   (example.com → https://example.com) now runs for the Home form in `webpulse-ui.js`.
 * **Tests:** `e2e/ui_test.py` was updated for the new layout and gained U27 (11 feature cards) and U28 (every
   card button opens a working page). **89/89** end-to-end checks pass.
+
+## Phase 11: use-case dashboard, Email/Telegram notifications, job listings, real and controlled demos
+
+The goal of this phase is a smaller, plainer interface organised around what people actually monitor, plus honest
+demonstration data. The monitoring engine, the processors, the datastore format, the scheduler, the workers and the
+REST API are unchanged.
+
+### Interface
+
+* **Navigation.** The sidebar is Home, Websites, Products, Job listings, Notifications, Controlled demo (only when
+  the local demo site runs) and Settings. The collapsible "Advanced" menu and the "Queue & workers" item are gone.
+  Their pages still exist and are linked from Settings → "More tools" and from Home → "Behind the scenes".
+* **Home (`blueprint/home`)** is rebuilt around six use cases:
+  * Website Monitoring
+  * Product Price Tracking
+  * Stock Availability
+  * Job Listing Monitoring
+  * Historical Price Analytics
+  * Notifications
+
+  The scheduler, workers and queue, page reading (plain HTTP or browser), REST API and saved data are now one
+  compact "Behind the scenes" row. Items from the controlled demo site carry a "Demo" chip. The analytics card
+  prefers a real product to a demo one.
+* **Add form on Home:** three buttons, "Watch website", "Track product" and "Track jobs". The optional "More
+  options" holds a CSS selector for one part of the page, keywords for job listings and the "needs JavaScript"
+  checkbox.
+* **Settings.** General holds the check interval, the number of versions kept and the password, plus a "More tools"
+  list: Notifications, Groups, Import, Check queue and workers, Backups, Add by pointing, and Delete all history.
+  The technical tabs only appear after **"Show technical settings"** (`webpulse-ui.js`; the choice is remembered):
+  * Alerts & access: the filter-missing alert, shared history, empty pages and the default proxy;
+  * Page reading;
+  * Text filters;
+  * Time zone;
+  * Appearance;
+  * Proxies;
+  * Backups.
+
+  Every field is still in the form, so nothing is lost when saving.
+* **Website edit page.** The tabs are General, Alerts and Check history, plus "Show technical options" for:
+  * Page section & filters;
+  * Page reading;
+  * Pick on the page;
+  * Browser steps;
+  * Conditions.
+
+  The history length moved into "More options". The per-website notification addresses are an "Advanced"
+  section in Alerts.
+* **Plain labels** (`forms.py` and the two fetchers):
+
+  | Before | After |
+  |---|---|
+  | Web Page URL | Web address |
+  | Group Tag | Group |
+  | Processor - What do you want to achieve? | What should WebPulse look for? |
+  | Fetch Method | How to read the page |
+  | Basic fast Plaintext/HTTP Client | Read the page directly - fast, for normal pages |
+  | Playwright Chromium/Javascript via '…' | Open the page in a real browser - for pages built with JavaScript |
+  | Time Between Check | Check every |
+  | CSS/JSONPath/JQ/XPath Filters | Only watch this part of the page (CSS, XPath or JSONPath) |
+  | Number of fetch workers | Pages checked at the same time (workers) |
+
+  On the list, "Deals" is now "Price drops" and "Healthy" is now "Working". Job-listing monitors get a "Jobs" badge.
+* **Bug fixes, all present in upstream too:**
+  * `visual-selector.js` no longer throws `getBoundingClientRect` of undefined on edit pages without a screenshot.
+  * `blueprint/ui/preview.py`: "View page" for a website with no saved version yet returned HTTP 500
+    (IndexError). It now shows "Preview unavailable".
+* **Proxy safety (`store/__init__.py`, `get_preferred_proxy_for_watch`).** Upstream falls back to the first proxy
+  in the list when no default is set. The demo proxy is now never chosen automatically, so a datastore with the
+  demo site configured can never route real websites to it.
+
+### Notifications: Email, Telegram and a kept history
+
+* **New `notification/simple_setup.py`.** It turns a few form fields into the existing Apprise notification URLs,
+  and reads them back for display:
+  * `mailtos://user:app-password@gmail.com/?to=…`, or a custom SMTP server;
+  * `tgram://bot-token/chat-id`.
+
+  "Find my chat ID" asks Telegram's `getUpdates` for the chats that messaged the bot. The host is fixed and the
+  token is checked against a strict pattern first. The stored password and bot token are never sent back to the
+  browser: a blank field keeps the saved value.
+* **New Notifications page (`/settings/notifications/`, `notifications-simple.html`).** It has three parts:
+  * Email and Telegram panels, each with "Save and send test", step-by-step help and "Turn off";
+  * the notification history;
+  * a collapsed "Technical" section with webhook addresses (used by the automated tests) and a link to the message
+    wording page.
+
+  The old page at `/settings/notifications/apprise` is kept as "Advanced notification settings".
+* **Service picker removed.** The Apprise "add a service" picker (Discord, Slack, Matrix, Pushover, Teams, Home
+  Assistant and 140 more) is no longer shown anywhere (`_common_fields.html`). The JSON endpoints behind it and
+  Apprise itself are unchanged, so any Apprise URL still works when typed into the advanced address list.
+* **New `notification/history.py`.** Every send, whether a change alert or a test, is appended to
+  `<datastore>/notification-history.jsonl`, keeping the last 500. Each entry holds:
+  * the time;
+  * the website;
+  * the channel, with the masked destination;
+  * the title;
+  * delivered or failed, plus the reason.
+
+  Error text is reduced to its warning and error lines. The passwords, bot tokens and URL secrets of the
+  notification URLs are replaced by `****`. The in-memory "notification debug log" now gets the same masking.
+  Hooks: `flask_app.notification_runner` and `blueprint/ui/notification.py` (test sends).
+* **New `format_unix_ts` template filter** for exact local times in the history.
+
+### Job listing monitoring (no new backend)
+
+A job-listing monitor is the normal text watcher (`text_json_diff`) in the group **"Job listings"**. "Track jobs"
+(`blueprint/ui/views.py`) puts the new watch in that group and turns on added, removed and changed lines. It then
+applies two filters:
+* the optional CSS selector, as the existing include filter;
+* the optional keywords, as one rule of the existing "Extract text" filter. `job_keywords_rule()` matches whole
+  words, so "intern" keeps "Internship" but not "Internal Audit".
+
+The group is created on start-up so the Job listings page is never "everything".
+
+### Controlled demo (`blueprint/demo_lab`, `/demo/`)
+
+* **What it does.** Buttons change the local demo site and then queue an immediate check of the matching demo
+  watches:
+  * a price drop or price rise;
+  * sold out or restocked;
+  * publish, change or remove a job;
+  * publish a non-technical job, which the keyword filter should ignore;
+  * change the news text;
+  * reset.
+* **What it is.** The page is clearly labelled as a controlled demonstration. It only exists when `run.ps1` sets
+  `WEBPULSE_DEMO_SITE`, which must be exactly `http://127.0.0.1:<port>`. Its only outgoing requests are to that
+  address (`/set`, `/reset` and `/state.json`). No user input becomes a URL, every action is a CSRF-protected
+  POST, and SSRF protection stays on.
+* **Demo site (`e2e/fixture_server.py`).** These changes also serve the tests:
+  * a careers page, `/jobs.html`, whose visitor counter and clock change on every request to show that a CSS
+    filter ignores page noise;
+  * a product name and `/state.json`;
+  * `/reset`;
+  * HTML-escaped output.
+
+  Hardening:
+  * `/set` accepts only known keys with bounded, validated values;
+  * `slow.html` delays are capped at 10 s;
+  * unknown paths get a 404 that names the demo site.
+
+  It still never forwards: CONNECT is unsupported (501), and any host asked for is answered with its own pages.
+  New test U34 checks this.
+* **`run.ps1`** sets `WEBPULSE_DEMO_SITE` and replaces a demo site left over from an earlier run, so the current
+  version always runs.
+
+### Demonstration data, honestly labelled
+
+* **`demo/setup_presentation.py` (new).** It runs while WebPulse is stopped, backs up the datastore first, and is
+  safe to run again. It:
+  * deletes the "[Sample data]" watches. Their price history was simulated, and the presentation must show only
+    history that WebPulse really recorded;
+  * removes the once-a-minute demo "clock" page, mutes the concurrency-test pages, and points the demo watches at
+    the normal alerts;
+  * adds real examples:
+    * Indian shops with INR prices, whose robots.txt allows product pages: Decathlon India (plain HTTP and real
+      browser), Sleepy Owl and boAt;
+    * public job boards: HackerRank on Greenhouse, Meesho on Lever, and the python.org job board, each limited to
+      the job list and to technical roles;
+    * the demo careers page;
+  * sets clear alert wording.
+* **`demo/seed_demo.py`** no longer creates simulated history.
+* **`demo/add_demo_site.py`** adds the demo careers page, drops the clock page and the blocked `json://` receiver,
+  and mutes the concurrency-test pages.
+* **Removed:** `demo/lab.ps1`, `lab_control.ps1` and `lab_demo.py`, which drove the retired second instance on
+  port 5001. The Controlled demo page replaces them.
+
+### Tests
+
+**Result: 95/95 end-to-end checks** (core 40, persistence 5, security 8, browser 8, UI 34), with 0 errors in the
+app logs. Upstream unit tests: 430 passed, 0 new failures. Templates 35/35, imports 52/52.
+
+
+`e2e/ui_test.py` now covers:
+
+| Test | What it checks |
+|---|---|
+| U15 | Webhook test from the new Notifications page |
+| U23 | Link check over the new pages |
+| U27 | The six use-case cards, the "Behind the scenes" row, and no Advanced menu |
+| U28 | Every Home button, including the "Behind the scenes" tiles, opens a working page |
+| U29 (new) | Technical settings are hidden by default, shown on request and still saved |
+| U30 (new) | The notification history is stored in the datastore and shown |
+| U31 (new) | The Email/Telegram form builds the right Apprise URLs, never echoes the password or token, keeps the webhook, and can be turned off |
+| U32 (new) | "Track jobs": a new job is detected, while a non-technical job and the page's changing counter/clock are ignored; the watch shows under Job listings with its badge |
+| U33 (new) | "Drop the price" on the Controlled demo page is detected by WebPulse through the demo proxy |
+| U34 (new) | The demo site used as a proxy does not forward to 169.254.169.254 or to WebPulse's API, refuses HTTPS tunnels, and rejects unknown settings |
+
+`run_e2e.ps1` gives the UI instance the demo proxy and `WEBPULSE_DEMO_SITE`, as `run.ps1` does. It also now has
+default lists for E19 (8 removed URLs must return 404) and E20 (18 markers of removed UI must be absent, including
+the Apprise service picker), so all 40 core checks run without extra arguments. S06 waits until the worker has
+recorded the blocked fetch's error; the check could previously race the worker.
+
+### Files
+
+* **Added:**
+  * `blueprint/demo_lab/__init__.py` and `blueprint/demo_lab/templates/demo-lab.html`;
+  * `notification/history.py` and `notification/simple_setup.py`;
+  * `blueprint/settings/notifications/templates/notifications-simple.html`;
+  * `demo/setup_presentation.py`;
+  * `docs/PRESENTATION_GUIDE.md`.
+* **Modified, with notice headers:**
+  * Python: `flask_app.py`, `forms.py`, `store/__init__.py`, `blueprint/ui/preview.py`, `blueprint/ui/views.py`, `blueprint/ui/notification.py`,
+    `blueprint/home/__init__.py`, `blueprint/settings/notifications/__init__.py`,
+    `content_fetchers/requests.py` and `content_fetchers/playwright.py`;
+  * templates: `home.html`, `sidebar-nav.html`, `base.html`, `settings.html`, `settings-tabs.html`, `apprise.html`,
+    `edit.html`, `_common_fields.html`, `watch-overview.html` and `watch-overview-single-row.html`;
+  * JS and SCSS: `visual-selector.js`, `webpulse-ui.js` and `webpulse.scss`. `webpulse.css` was rebuilt with
+    sass 1.77.8;
+  * scripts: `run.ps1`, `e2e/fixture_server.py`, `e2e/run_e2e.ps1`, `e2e/test_e2e.py`, `e2e/ui_test.py`, `demo/seed_demo.py` and
+    `demo/add_demo_site.py`.

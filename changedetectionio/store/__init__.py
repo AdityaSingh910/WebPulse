@@ -1047,8 +1047,10 @@ class ChangeDetectionStore(DatastoreUpdatesMixin, FileSavingDataStore):
 
         # Fallback - Did not resolve anything, or doesnt exist, use the first available
         if system_proxy_id is None or not self.proxy_list.get(system_proxy_id):
-            first_default = list(self.proxy_list)[0]
-            return first_default
+            # WebPulse: the controlled-demo proxy (it only serves the local demo site) is never picked automatically;
+            # only watches that explicitly choose it use it. Everything else falls back to the next entry ("No proxy").
+            candidates = [k for k in self.proxy_list if k != 'webpulse-demo-site']
+            return candidates[0] if candidates else None
 
         return None
 

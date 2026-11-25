@@ -3,16 +3,17 @@
 {%- set _ep = request.endpoint or '' -%}
 {%- set _authed = current_user.is_authenticated or not has_password -%}
 {%- if _ep == 'home.home_page' -%}{%- set _page = _('Home') -%}
-{%- elif _ep == 'watchlist.index' -%}{%- set _page = _('Products') if request.args.get('processor') == 'restock_diff' else _('Websites') -%}
+{%- elif _ep == 'watchlist.index' -%}{%- set _page = _('Products') if request.args.get('processor') == 'restock_diff' else (_('Job listings') if (request.args.get('tag') or '').strip().lower() == 'job listings' else _('Websites')) -%}
+{%- elif _ep.startswith('demo_lab.') -%}{%- set _page = _('Controlled demo') -%}
 {%- elif _ep.startswith('add_watch_ui.') -%}{%- set _page = _('Add watch') -%}
-{%- elif _ep.startswith('ui.ui_edit') -%}{%- set _page = _('Edit watch') -%}
+{%- elif _ep.startswith('ui.ui_edit') -%}{%- set _page = _('Edit') -%}
 {%- elif _ep.startswith('ui.ui_diff') -%}{%- set _page = _('Change history') -%}
 {%- elif _ep.startswith('ui.ui_preview') -%}{%- set _page = _('Snapshot preview') -%}
 {%- elif _ep.startswith('ui.ui_queue') -%}{%- set _page = _('Check queue') -%}
 {%- elif _ep.startswith('tags.') -%}{%- set _page = _('Groups') -%}
 {%- elif _ep.startswith('imports.') -%}{%- set _page = _('Import') -%}
 {%- elif _ep.startswith('settings.notifications') -%}{%- set _page = _('Notifications') -%}
-{%- elif _ep == 'settings.notification_logs' -%}{%- set _page = _('Notification log') -%}
+{%- elif _ep == 'settings.notification_logs' -%}{%- set _page = _('Technical send log') -%}
 {%- elif _ep.startswith('backups') -%}{%- set _page = _('Backups') -%}
 {%- elif _ep.startswith('settings.') -%}{%- set _page = _('Settings') -%}
 {%- elif _ep == 'login' -%}{%- set _page = _('Sign in') -%}

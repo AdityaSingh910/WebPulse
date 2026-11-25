@@ -211,20 +211,73 @@ def run():
         saved = json.load(open(os.path.join(DS, 'changedetection.json'), encoding='utf-8'))['settings']['application'].get('history_snapshot_max_length')
         check('U14', 'Settings form saves', str(saved) == '50', f'stored={saved}')
 
+        # ---- U29: technical settings are hidden until asked for, and still save ----
+        page.goto(BASE + '/settings#general', wait_until='networkidle')
+        hidden = not page.locator('.wp-tab-tech a[href$="#fetching"]').is_visible()
+        page.click('[data-wp-tech-toggle]')
+        shown = page.locator('.wp-tab-tech a[href$="#fetching"]').is_visible()
+        page.click('.wp-tab-tech a[href$="#more"]')
+        page.check('input[name="requests-proxy"][value="no-proxy"]')
+        page.locator('#actions button, #actions input[type=submit]').first.click()
+        page.wait_for_load_state('networkidle')
+        proxy = json.load(open(os.path.join(DS, 'changedetection.json'), encoding='utf-8'))['settings']['requests'].get('proxy')
+        page.goto(BASE + '/settings#general', wait_until='networkidle')
+        page.click('[data-wp-tech-toggle]')   # hide them again for the next tests
+        check('U29', 'Technical settings: hidden by default, shown on request, still saved', hidden and shown and proxy == 'no-proxy',
+              f'hidden={hidden} shown={shown} proxy={proxy}')
+
         # ---- U15: notifications - add a URL, send a test, save ----
         page.goto(BASE + '/settings/notifications/', wait_until='networkidle')
-        page.fill('textarea.notification-urls', FIX.replace('http://', 'json://') + '/notify')
-        page.locator('#send-test-notification').click()
+        page.click('#technical > summary')
+        page.fill('#webhook_urls', FIX.replace('http://', 'json://') + '/notify')
+        page.click('#webhook-test')
+        page.wait_for_load_state('networkidle')
         got = False
         for _ in range(20):
-            if any('notify' in l or l.strip() for l in open(LOG, encoding='utf-8')):
+            if any(l.strip() for l in open(LOG, encoding='utf-8')):
                 got = True
                 break
             time.sleep(1)
-        page.locator('form button:has-text("Save"), form input[type=submit][value="Save"]').first.click()
-        page.wait_for_load_state('networkidle')
         shot(page, '08-notifications')
-        check('U15', 'Notification test message is delivered (Apprise)', got)
+        check('U15', 'Notification test message is delivered (Apprise webhook)', got)
+
+        # ---- U30: notification history is kept (masked) and shown ----
+        page.goto(BASE + '/settings/notifications/', wait_until='networkidle')
+        row = page.locator('#notification-history tbody tr').first
+        row_text = row.inner_text() if row.count() else ''
+        hist_file = os.path.join(DS, 'notification-history.jsonl')
+        check('U30', 'Notification history lists the delivery (stored in the datastore)', 'Webhook' in row_text and 'Delivered' in row_text
+              and os.path.isfile(hist_file), row_text.replace('\n', ' ')[:120])
+
+        # ---- U31: Email + Telegram set-up builds the Apprise URLs; secrets are never sent back to the page ----
+        secret_pw = 'abcd efgh ijkl mnop'
+        token = '123456789:AAH' + 'x' * 32
+        page.fill('#email_sender', 'webpulse.test@gmail.com')
+        page.fill('#email_password', secret_pw)
+        page.fill('#email_recipients', 'me@example.com')
+        page.click('button[value="save_email"]')
+        page.wait_for_load_state('networkidle')
+        page.fill('#telegram_token', token)
+        page.fill('#telegram_chat_id', '987654321')
+        page.click('button[value="save_telegram"]')
+        page.wait_for_load_state('networkidle')
+        urls = json.load(open(os.path.join(DS, 'changedetection.json'), encoding='utf-8'))['settings']['application']['notification_urls']
+        html = page.content()
+        email_ok = any(u.startswith('mailtos://webpulse.test:abcd%20efgh%20ijkl%20mnop@gmail.com') and 'to=me@example.com' in u for u in urls)
+        tg_ok = f'tgram://{token}/987654321' in urls
+        hook_kept = any(u.startswith('json://') for u in urls)
+        leaked = secret_pw in html or token in html or 'abcd%20efgh' in html
+        on = page.locator('#email .wp-status--on').count() == 1 and page.locator('#telegram .wp-status--on').count() == 1
+        shot(page, '08b-notifications-configured')
+        # turn both off again so later tests do not try to reach Gmail/Telegram with made-up credentials
+        page.click('button[value="remove_email"]')
+        page.wait_for_load_state('networkidle')
+        page.click('button[value="remove_telegram"]')
+        page.wait_for_load_state('networkidle')
+        urls_after = json.load(open(os.path.join(DS, 'changedetection.json'), encoding='utf-8'))['settings']['application']['notification_urls']
+        check('U31', 'Email/Telegram form builds the right addresses, never shows the password/token, can be turned off',
+              email_ok and tg_ok and hook_kept and not leaked and on and all(u.startswith('json://') for u in urls_after),
+              f'email={email_ok} telegram={tg_ok} webhook_kept={hook_kept} leaked={leaked} on={on} after={len(urls_after)}')
 
         # ---- U16: import ----
         page.goto(BASE + '/imports/import', wait_until='networkidle')
@@ -267,7 +320,9 @@ def run():
         check('U20', 'Delete a watch (with confirmation dialog)', watch_by_url('import=2') is None)
 
         # ---- U21: queue + backups pages ----
-        page.goto(BASE + '/queue', wait_until='networkidle')
+        page.goto(BASE + '/settings#general', wait_until='networkidle')
+        page.click('.wp-tools a:has-text("Check queue and workers")')
+        page.wait_for_load_state('networkidle')
         q_ok = 'Check queue' in page.title()
         page.goto(BASE + '/backups/create', wait_until='networkidle')
         check('U21', 'Queue and Backups pages', q_ok and page.locator('.wp-topbar h1').inner_text() == 'Backups')
@@ -286,7 +341,7 @@ def run():
         m.close()
 
         # ---- U23: every internal link on every page resolves ----
-        pages = ['/', '/watches/', '/watches/?processor=restock_diff', '/tags/list', '/imports/import', '/settings', '/settings/notifications/', '/settings/notification-logs',
+        pages = ['/', '/watches/', '/watches/?processor=restock_diff', '/tags/list', '/imports/import', '/settings', '/settings/notifications/', '/settings/notifications/apprise', '/settings/notification-logs', '/demo/', '/watches/?tag=Job%20listings',
                  '/queue', '/backups/create', f'/edit/{uuid}', f'/diff/{uuid}', f'/preview/{uuid}', f'/diff/{puuid}', f'/edit/{puuid}']
         links, external = set(), set()
         for pth in pages:
@@ -321,6 +376,73 @@ def run():
         unexpected = sorted(e for e in external if e not in watched and not any(a in e.lower() for a in allowed_ext))
         check('U24', f'External links limited to attribution + technical references ({len(external)} found)', not unexpected, unexpected or 'ok')
 
+        # ---- U32: "Track jobs" - only the job list, only technical jobs; new/removed jobs are detected ----
+        requests.post(FIX + '/reset')
+        page.goto(BASE + '/', wait_until='networkidle')
+        page.fill('#new-watch-form input[name="url"]', FIX + '/jobs.html')
+        page.click('#new-watch-form details.wp-hero-more > summary')
+        page.fill('#include_filters', '#job-list')
+        page.fill('#job_keywords', 'engineer, developer, data, intern')
+        page.click('#track-jobs-go')
+        page.wait_for_load_state('networkidle')
+        on_jobs_page = 'Job listings' in page.locator('.wp-topbar h1').inner_text()
+        juuid = watch_by_url('/jobs.html')
+        wait_history(juuid, 1)
+        time.sleep(1.2)
+        requests.post(FIX + '/set?jobs=' + requests.utils.quote('Platform Engineer - Pune|Backend Engineer (Python) - Bengaluru|Data Engineer - Hyderabad|Software Engineering Intern - Remote'))
+        requests.get(f'{BASE}/api/v1/watch/{juuid}?recheck=1', headers=api()[1])
+        w = wait_history(juuid, 2)
+        time.sleep(1.2)
+        # A non-technical job and the page's ever-changing visitor counter/clock must NOT count as a change
+        requests.post(FIX + '/set?jobs=' + requests.utils.quote('Platform Engineer - Pune|Backend Engineer (Python) - Bengaluru|Data Engineer - Hyderabad|Software Engineering Intern - Remote|Office Administrator - Mumbai'))
+        requests.get(f'{BASE}/api/v1/watch/{juuid}?recheck=1', headers=api()[1])
+        time.sleep(6)
+        w2 = wait_history(juuid, 2, timeout=10)
+        page.goto(f'{BASE}/diff/{juuid}', wait_until='networkidle')
+        diff = page.locator('#difference').inner_text() if page.locator('#difference').count() else ''
+        shot(page, '12-job-diff')
+        page.goto(BASE + '/watches/?tag=Job%20listings', wait_until='networkidle')
+        badge = page.locator(f'tr[data-watch-uuid="{juuid}"] .processor-badge-jobs').count() == 1
+        check('U32', 'Track jobs: new job detected, non-technical job and page noise ignored, listed under Job listings',
+              on_jobs_page and int(w.get('history_n') or 0) == 2 and int(w2.get('history_n') or 0) == 2 and 'Platform Engineer' in diff
+              and 'Office Administrator' not in diff and badge,
+              f"jobs_page={on_jobs_page} history={w.get('history_n')}->{w2.get('history_n')} badge={badge} diff={diff[:80]!r}")
+
+        # ---- U33: controlled demo - a price drop made on the demo site is detected by WebPulse ----
+        _, h = api()
+        r = requests.post(BASE + '/api/v1/watch', headers=h, json={'url': 'http://shop.webpulse-demo.test/product.html', 'title': '[Demo] UI test product',
+                                                                   'processor': 'restock_diff', 'proxy': 'webpulse-demo-site'})
+        duuid = watch_by_url('shop.webpulse-demo.test')
+        wait_history(duuid, 1)
+        page.goto(BASE + '/demo/', wait_until='networkidle')
+        nav_ok = page.locator('.wp-nav a:has-text("Controlled demo")').count() == 1
+        page.click('button[value="price_drop"]')
+        page.wait_for_load_state('domcontentloaded')
+        w = wait_history(duuid, 2)
+        state = requests.get(FIX + '/state.json').json()
+        page.goto(f'{BASE}/diff/{duuid}', wait_until='networkidle')
+        shot(page, '13-demo-price-drop')
+        hist = page.inner_text('body')
+        dropped = f"{float(state['price']):,.0f}" in hist or str(int(float(state['price']))) in hist
+        check('U33', 'Controlled demo: "Drop the price" changes the demo shop and WebPulse records the new price',
+              r.status_code in (200, 201) and nav_ok and int(w.get('history_n') or 0) >= 2 and dropped,
+              f"nav={nav_ok} history={w.get('history_n')} price_now={state['price']} seen={dropped}")
+
+        # ---- U34: the demo site never forwards requests (it is safe as a proxy) ----
+        via = requests.get('http://169.254.169.254/latest/meta-data/', proxies={'http': FIX}, timeout=10)
+        via_api = requests.get(f'{BASE}/api/v1/systeminfo', proxies={'http': FIX}, headers=h, timeout=10)
+        try:
+            requests.get('https://example.com/', proxies={'https': FIX}, timeout=10)
+            tunnel = 'opened'
+        except requests.exceptions.ProxyError:
+            tunnel = 'refused'
+        except Exception as e:
+            tunnel = type(e).__name__
+        bad_set = requests.post(FIX + '/set?url=http://evil.example/').status_code
+        check('U34', 'Demo site as a proxy: never forwards (metadata IP, WebPulse API), no HTTPS tunnel, unknown settings refused',
+              via.status_code == 404 and 'demo site' in via.text and via_api.status_code == 404 and tunnel == 'refused' and bad_set == 400,
+              f'meta={via.status_code} api={via_api.status_code} tunnel={tunnel} set={bad_set}')
+
         # ---- U25: password login through the UI, then remove it again ----
         page.goto(BASE + '/settings#general', wait_until='networkidle')
         page.fill('input[name="application-password"]', 'webpulse-demo-pass')
@@ -346,12 +468,14 @@ def run():
         hp = b.new_page(viewport={'width': 1440, 'height': 900})
         hp.goto(BASE + '/', wait_until='networkidle')
         titles = [t.strip() for t in hp.locator('.wp-feature h3').all_inner_texts()]
-        expected = ['Website Monitoring', 'Website Change Detection', 'Product Price Tracking', 'Stock Availability Monitoring',
-                    'Historical Price Analytics', 'Static and Dynamic Web Scraping', 'Task Scheduling',
-                    'Concurrent Workers and Queue', 'Notifications', 'REST API', 'Data History']
+        expected = ['Website Monitoring', 'Product Price Tracking', 'Stock Availability', 'Job Listing Monitoring',
+                    'Historical Price Analytics', 'Notifications']
         hp.screenshot(path=os.path.join(SHOTS, '00-home.png'), full_page=True)
-        check('U27', 'Home shows a card for each of the 11 features', titles == expected, titles)
-        hrefs = {a.get_attribute('href') for a in hp.locator('.wp-feature footer a').all()}
+        behind = hp.locator('.wp-behind .wp-tile').count()
+        nav = [t.strip() for t in hp.locator('.wp-nav .wp-nav-item span:first-of-type').all_inner_texts()]
+        check('U27', 'Home: six use-case cards, technical parts in one "Behind the scenes" row, no Advanced menu',
+              titles == expected and behind == 5 and 'Advanced' not in ' '.join(nav) and 'Job listings' in nav, f'{titles} nav={nav}')
+        hrefs = {a.get_attribute('href') for a in hp.locator('.wp-feature footer a, .wp-behind a, #card-demo a').all()}
         bad = {}
         for href in sorted(h for h in hrefs if h and not h.startswith('#')):
             code = requests.get(urljoin(BASE + '/', href), timeout=30).status_code

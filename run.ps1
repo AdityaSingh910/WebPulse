@@ -3,7 +3,7 @@
 #   .\run.ps1
 #
 #   1. headless Microsoft Edge (already installed on Windows) for JavaScript pages      127.0.0.1:9222
-#   2. the internal demo site (simulated shop/news pages + notification receiver)      127.0.0.1:8199
+#   2. the internal demo site (controlled shop / careers / news pages)                 127.0.0.1:8199
 #   3. WebPulse itself - the only page you open in your browser                         http://127.0.0.1:5000
 #
 #   Ctrl+C stops WebPulse and the helpers it started.
@@ -12,7 +12,8 @@
 # Security defaults (do not change for normal use):
 #   - everything binds to 127.0.0.1 only
 #   - SSRF protection stays ON: ALLOW_IANA_RESTRICTED_ADDRESSES is never set here. The demo site is reached
-#     only through its own named proxy by the [Demo] watches (see demo/add_demo_site.py); it never forwards.
+#     only through its own named proxy by the [Demo] watches (see demo/setup_presentation.py); it never forwards.
+#     The Controlled demo page (/demo/) talks only to http://127.0.0.1:<DemoSitePort>.
 param(
     [int]$Port = 5000,
     [string]$Datastore = "C:\Users\adity\cdio-data\webpulse-demo",
@@ -48,11 +49,16 @@ if (-not $NoBrowser) {
 # 2. Internal demo site (serves only its own canned pages; never forwards)
 if (-not $NoDemoSite) {
     New-Item -ItemType Directory -Force $DemoSiteDir | Out-Null
-    $demoUp = Get-CimInstance Win32_Process -Filter "Name='python.exe'" | Where-Object { $_.CommandLine -like "*fixture_server.py*$DemoSitePort*" }
-    if (-not $demoUp) {
-        $started += Start-Process -FilePath $Python -PassThru -WindowStyle Hidden -ArgumentList @('-I', (Join-Path $PSScriptRoot 'e2e\fixture_server.py'), $DemoSitePort, $DemoSiteDir)
-    }
-    Write-Host "Demo site (internal):     127.0.0.1:$DemoSitePort"
+    # A demo site left over from an earlier run is replaced, so the current version always runs
+    Get-CimInstance Win32_Process -Filter "Name='python.exe'" | Where-Object { $_.CommandLine -like "*fixture_server.py*$DemoSitePort*" } |
+        ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+    $started += Start-Process -FilePath $Python -PassThru -WindowStyle Hidden -ArgumentList @('-I', (Join-Path $PSScriptRoot 'e2e\fixture_server.py'), $DemoSitePort, $DemoSiteDir)
+    # Turns on the "Controlled demo" page; WebPulse accepts only http://127.0.0.1:<port> here
+    $env:WEBPULSE_DEMO_SITE = "http://127.0.0.1:$DemoSitePort"
+    Write-Host "Demo site (internal):     127.0.0.1:$DemoSitePort   (Controlled demo page: http://127.0.0.1:$Port/demo/)"
+}
+else {
+    Remove-Item Env:WEBPULSE_DEMO_SITE -ErrorAction SilentlyContinue
 }
 
 # 3. WebPulse

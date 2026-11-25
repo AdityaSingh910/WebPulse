@@ -1,3 +1,4 @@
+# Modified 2026 for the simplified (academic) fork of changedetection.io - optional features removed, see CHANGES.md
 from flask_babel import lazy_gettext as _l
 from loguru import logger
 from urllib.parse import urljoin, urlparse
@@ -14,7 +15,7 @@ from changedetectionio.validate_url import is_fetch_url_allowed, is_private_host
 
 # "html_requests" is listed as the default fetcher in store.py!
 class fetcher(Fetcher):
-    fetcher_description = _l("Basic fast Plaintext/HTTP Client")
+    fetcher_description = _l("Read the page directly - fast, for normal pages")
     supports_pdf = True
 
     def __init__(self, proxy_override=None, custom_browser_connection_url=None, **kwargs):

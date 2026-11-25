@@ -22,64 +22,68 @@
                 <fieldset>
                     <div class="pure-control-group">
                         {{ render_field(form.requests.form.time_between_check, class="time-check-widget") }}
-
-                        {# TRANSLATORS: FIXME: fragment msgids (#4074) #}
-                        <span class="pure-form-message-inline">{{ _('Default recheck time for all watches, current system minimum is') }} <i>{{min_system_recheck_seconds}}</i> {{ ngettext('second', 'seconds', min_system_recheck_seconds) }}.</span>
+                        <span class="pure-form-message-inline">{{ _('How often each website is checked, unless it has its own interval. The shortest allowed is %(n)s seconds.', n=min_system_recheck_seconds) }}</span>
                             <div id="time-between-check-schedule">
-                                <!-- Start Time and End Time {{ timezone_default_config }} -->
                                 <div id="limit-between-time">
                                    {{ render_time_schedule_form(form.requests, available_timezones, timezone_default_config) }}
                                 </div>
                         </div>
                     </div>
                     <div class="pure-control-group">
-                        {{ render_field(form.application.form.filter_failure_notification_threshold_attempts, class="filter_failure_notification_threshold_attempts") }}
-                        <span class="pure-form-message-inline">{{ _('After this many consecutive times that the CSS/xPath filter is missing, send a notification') }}
-                            <br>
-                        {{ _('Set to <strong>0</strong> to disable')|safe }}
-                        </span>
-                    </div>
-                    <div class="pure-control-group">
                         {{ render_field(form.application.form.history_snapshot_max_length, class="history_snapshot_max_length") }}
-                        <span class="pure-form-message-inline">{{ _('Limit collection of history snapshots for each watch to this number of history items.') }}
-                            <br>
-                        {{ _('Set to empty to disable / no limit') }}
-                        </span>
+                        <span class="pure-form-message-inline">{{ _('WebPulse keeps this many versions of each page (the oldest are removed first). Leave empty to keep everything.') }}</span>
                     </div>
-
                     <div class="pure-control-group">
                         {% if not hide_remove_pass %}
                             {% if current_user.is_authenticated %}
                                 {{ render_button(form.application.form.removepassword_button) }}
                             {% else %}
                             {{ render_field(form.application.form.password) }}
-                            <span class="pure-form-message-inline">{{ _('Protect your WebPulse dashboard with a password.') }}</span>
+                            <span class="pure-form-message-inline">{{ _('Optional. Ask for a password before anyone can open WebPulse.') }}</span>
                             {% endif %}
                         {% else %}
                             <span class="pure-form-message-inline">{{ _('Password is locked.') }}</span>
                         {% endif %}
                     </div>
+                </fieldset>
+                <div class="wp-tools">
+                    <h4>{{ _('More tools') }}</h4>
+                    <ul>
+                        <li><a href="{{ url_for('settings.notifications.index') }}"><i data-feather="bell"></i>{{ _('Notifications (Email and Telegram)') }}</a></li>
+                        <li><a href="{{ url_for('tags.tags_overview_page') }}"><i data-feather="folder"></i>{{ _('Groups') }}</a> <span>{{ _('organise websites into groups with shared settings') }}</span></li>
+                        <li><a href="{{ url_for('imports.import_page') }}"><i data-feather="upload"></i>{{ _('Import a list of websites') }}</a></li>
+                        <li><a href="{{ url_for('ui.ui_queue.queue_page') }}"><i data-feather="cpu"></i>{{ _('Check queue and workers') }}</a></li>
+                        <li><a href="{{ url_for('backups.create') }}"><i data-feather="archive"></i>{{ _('Backups') }}</a></li>
+                        {%- if has_visual_browser|default(false) %}
+                        <li><a href="{{ url_for('add_watch_ui.add_watch_ui_index') }}"><i data-feather="mouse-pointer"></i>{{ _('Add a website by pointing at the page') }}</a></li>
+                        {%- endif %}
+                        <li><a href="{{url_for('ui.clear_all_history')}}" class="wp-danger-link"><i data-feather="trash-2"></i>{{ _('Delete the saved history of all websites') }}</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="tab-pane-inner" id="more">
+                <fieldset>
                     <div class="pure-control-group">
-                      <a href="{{url_for('ui.clear_all_history')}}" class="cdio-btn button-error">{{ _('Clear Snapshot History') }}</a>
+                        {{ render_field(form.application.form.filter_failure_notification_threshold_attempts, class="filter_failure_notification_threshold_attempts") }}
+                        <span class="pure-form-message-inline">{{ _('Only for websites set to watch one part of a page. Set to 0 to turn off.') }}</span>
                     </div>
                     <div class="pure-control-group">
                         {{ render_checkbox_field(form.application.form.shared_diff_access, class="shared_diff_access") }}
-                        <span class="pure-form-message-inline">{{ _('Allow access to the watch change history page when password is enabled (Good for sharing the diff page)') }}</span>
+                        <span class="pure-form-message-inline">{{ _('Useful for sharing a change page when a password is set.') }}</span>
                     </div>
                     <div class="pure-control-group">
                         {{ render_checkbox_field(form.application.form.empty_pages_are_a_change) }}
-                        <span class="pure-form-message-inline">{{ _('When a request returns no content, or the HTML does not contain any text, is this considered a change?') }}</span>
+                        <span class="pure-form-message-inline">{{ _('When a page comes back empty or without any text.') }}</span>
                     </div>
                 {% if form.requests.proxy %}
                     <div>
-                    <br>
                         <div class="inline-radio">
                             {{ render_field(form.requests.form.proxy, class="fetch-backend-proxy") }}
-                            <span class="pure-form-message-inline">{{ _('Choose a default proxy for all watches') }}</span>
+                            <span class="pure-form-message-inline">{{ _('Choose a default proxy for all websites. Keep “No proxy” unless you need one.') }}</span>
                         </div>
                     </div>
                 {% endif %}
-
                 </fieldset>
             </div>
 
@@ -87,8 +91,7 @@
                 <div class="pure-control-group inline-radio">
                     {{ render_field(form.application.form.fetch_backend, class="fetch-backend") }}
                     <span class="pure-form-message-inline">
-                        <p>{{ _('Use the <strong>Basic</strong> method (default) where your watched sites don\'t need Javascript to render.')|safe }}</p>
-                        <p>{{ _('The <strong>Chrome/Javascript</strong> method requires a network connection to a running Chrome/Edge browser over CDP (Playwright), set by the PLAYWRIGHT_DRIVER_URL ENV var - on Windows use run.ps1 -Browser.')|safe }}</p>
+                        <p>{{ _('Reading a page directly is fast and works for most pages. Pages whose content is built by JavaScript need a real browser; run.ps1 starts a hidden Microsoft Edge for this.') }}</p>
                     </span>
                 </div>
                 <fieldset class="pure-group" id="webdriver-override-options" data-visible-for="application-fetch_backend=html_webdriver">

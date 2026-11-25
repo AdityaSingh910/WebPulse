@@ -70,6 +70,20 @@ def run_preloaded_first_check(datastore, uuid):
         return False
 
 
+JOB_LISTINGS_GROUP = 'Job listings'   # WebPulse: the group that makes a watch a job-listing monitor
+
+
+def job_keywords_rule(text):
+    """WebPulse: "engineer, data, intern" -> one rule for the existing Extract-text filter that keeps only the
+    lines containing one of the words as a whole word (plurals and -ing/-ship forms included), so
+    "intern" keeps "Internship" but not "Internal Audit"."""
+    import re
+    words = [w.strip() for w in re.split(r'[,\n]', text or '') if w.strip()][:20]
+    if not words:
+        return None
+    return r'/.*\b(?:' + '|'.join(re.escape(w[:40]) for w in words) + r')(?:s|es|ing|ship|ships)?\b.*/i'
+
+
 def construct_blueprint(datastore: ChangeDetectionStore, update_q, queuedWatchMetaData, watch_check_update):
     views_blueprint = Blueprint('ui_views', __name__, template_folder="../ui/templates")
 
@@ -77,7 +91,13 @@ def construct_blueprint(datastore: ChangeDetectionStore, update_q, queuedWatchMe
     @login_optionally_required
     def form_quick_watch_add():
         from changedetectionio import forms
-        form = forms.quickWatchForm(request.form)
+        # WebPulse: "Track jobs" on Home is the normal website watcher (text_json_diff) put in the
+        # "Job listings" group, optionally limited to one part of the page and to lines with keywords.
+        formdata = request.form.copy()
+        is_jobs = formdata.get('processor') == 'job_listings'
+        if is_jobs:
+            formdata['processor'] = 'text_json_diff'
+        form = forms.quickWatchForm(formdata)
 
         if not form.validate():
             for widget, l in form.errors.items():
@@ -90,8 +110,16 @@ def construct_blueprint(datastore: ChangeDetectionStore, update_q, queuedWatchMe
 
         add_paused = request.form.get('edit_and_watch_submit_button') != None
         from changedetectionio import processors
-        processor = request.form.get('processor', processors.get_default_processor())
+        processor = formdata.get('processor', processors.get_default_processor())
         extras = {'paused': add_paused, 'processor': processor}
+        tags = request.form.get('tags', '').strip()
+        if is_jobs:
+            tags = ', '.join(t for t in [tags, JOB_LISTINGS_GROUP] if t)
+            # New, removed and changed job lines are all reported
+            extras.update({'filter_text_added': True, 'filter_text_removed': True, 'filter_text_replaced': True})
+            rule = job_keywords_rule(request.form.get('job_keywords', ''))
+            if rule:
+                extras['extract_text'] = [rule]
 
         # Browser picked on the Add Watch page (validated against the live-preview capable
         # list by the form). Absent from the watch-list quick-add, which leaves the new
@@ -112,7 +140,7 @@ def construct_blueprint(datastore: ChangeDetectionStore, update_q, queuedWatchMe
         new_uuid = datastore.make_temporary_watch_active_watch(
             temp_uuid=temporary_uuid,
             url=url,
-            tag=request.form.get('tags', '').strip(),
+            tag=tags,
             extras=extras,
         )
 
@@ -129,8 +157,14 @@ def construct_blueprint(datastore: ChangeDetectionStore, update_q, queuedWatchMe
                 # preloaded fetch - otherwise the watch is already populated.
                 if not created_first_snapshot:
                     worker_pool.queue_item_async_safe(update_q, queuedWatchMetaData.PrioritizedItem(priority=1, item={'uuid': new_uuid}))
-                flash(gettext("Watch added."))
+                flash(gettext("Job listing page added - WebPulse is reading it now.") if is_jobs else
+                      gettext("Product added - WebPulse is reading its price now.") if processor == 'restock_diff' else
+                      gettext("Website added - WebPulse is reading it now."))
 
+        if is_jobs:
+            return redirect(url_for('watchlist.index', tag=JOB_LISTINGS_GROUP))
+        if processor == 'restock_diff' and not request.args.get('tag'):
+            return redirect(url_for('watchlist.index', processor='restock_diff'))
         return redirect(url_for('watchlist.index', tag=request.args.get('tag','')))
 
     return views_blueprint

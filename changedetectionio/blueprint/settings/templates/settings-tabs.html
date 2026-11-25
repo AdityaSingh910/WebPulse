@@ -12,20 +12,22 @@
 #}
 {% macro settings_tabs(active=None, plugin_tabs=None) %}
 {%- set base = '' if active is none else url_for('settings.settings_page') -%}
-<div class="tabs collapsable">
+<div class="tabs collapsable wp-tabs-tech">
     <ul>
         <li class="tab"><a href="{{ base }}#general">{{ _('General') }}</a></li>
-        <li class="tab"><a href="{{ base }}#api">{{ _('API') }}</a></li>
+        <li class="tab"><a href="{{ base }}#api">{{ _('REST API') }}</a></li>
         <li class="tab"><a href="{{ base }}#about">{{ _('About') }}</a></li>
-        <li class="wp-tab-label" aria-hidden="true">{{ _('Advanced') }}</li>
-        <li class="tab"><a href="{{ base }}#fetching">{{ _('Fetching') }}</a></li>
-        <li class="tab"><a href="{{ base }}#filters">{{ _('Filters') }}</a></li>
-        <li class="tab"><a href="{{ base }}#timedate">{{ _('Time & date') }}</a></li>
-        <li class="tab"><a href="{{ base }}#ui-options">{{ _('Appearance') }}</a></li>
-        <li class="tab"><a href="{{ base }}#proxies">{{ _('Proxies') }}</a></li>
-        <li class="tab"><a href="{{ url_for('backups.create') }}">{{ _('Backups') }}</a></li>
+        <li class="wp-tab-toggle"><button type="button" class="wp-btn wp-btn--ghost wp-btn--sm" data-wp-tech-toggle
+            data-show-label="{{ _('Show technical settings') }}" data-hide-label="{{ _('Hide technical settings') }}">{{ _('Show technical settings') }}</button></li>
+        <li class="tab wp-tab-tech"><a href="{{ base }}#more">{{ _('Alerts & access') }}</a></li>
+        <li class="tab wp-tab-tech"><a href="{{ base }}#fetching">{{ _('Page reading') }}</a></li>
+        <li class="tab wp-tab-tech"><a href="{{ base }}#filters">{{ _('Text filters') }}</a></li>
+        <li class="tab wp-tab-tech"><a href="{{ base }}#timedate">{{ _('Time zone') }}</a></li>
+        <li class="tab wp-tab-tech"><a href="{{ base }}#ui-options">{{ _('Appearance') }}</a></li>
+        <li class="tab wp-tab-tech"><a href="{{ base }}#proxies">{{ _('Proxies') }}</a></li>
+        <li class="tab wp-tab-tech"><a href="{{ url_for('backups.create') }}">{{ _('Backups') }}</a></li>
         {% for tab in plugin_tabs or [] %}
-        <li class="tab"><a href="{{ base }}#plugin-{{ tab.plugin_id }}">{{ tab.tab_label }}</a></li>
+        <li class="tab wp-tab-tech"><a href="{{ base }}#plugin-{{ tab.plugin_id }}">{{ tab.tab_label }}</a></li>
         {% endfor %}
     </ul>
 </div>

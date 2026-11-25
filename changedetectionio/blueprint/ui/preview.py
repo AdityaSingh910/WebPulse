@@ -1,3 +1,4 @@
+# Modified 2026 for the simplified (academic) fork of changedetection.io - optional features removed, see CHANGES.md
 from flask import Blueprint, request, url_for, flash, render_template, redirect
 from flask_babel import gettext
 import time
@@ -67,7 +68,9 @@ def construct_blueprint(datastore: ChangeDetectionStore):
         ignored_line_numbers = []
         blocked_line_numbers = []
 
-        if datastore.data['watching'][uuid].history_n == 0 and (watch.get_error_text() or watch.get_error_snapshot()):
+        # WebPulse fix: also when there is no saved version and no error yet (first check still pending, or it
+        # failed without an error snapshot) - upstream raised IndexError here and returned HTTP 500
+        if datastore.data['watching'][uuid].history_n == 0:
             flash(gettext("Preview unavailable - No fetch/check completed or triggers not reached"), "error")
         else:
             # So prepare the latest preview or not

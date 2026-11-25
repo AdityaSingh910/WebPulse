@@ -1,3 +1,4 @@
+# Modified 2026 for the simplified (academic) fork of changedetection.io - optional features removed, see CHANGES.md
 """
 Notification settings — child blueprint of /settings.
 
@@ -26,12 +27,160 @@ def construct_notifications_blueprint(datastore: ChangeDetectionStore):
         template_folder="templates",
     )
 
-    @notifications_blueprint.route("/", methods=['GET'])
+    # ---- WebPulse (2026): the simple Email + Telegram page. It edits the same notification_urls list
+    #      that the Apprise pipeline reads; nothing about how notifications are sent changes. ----
+    def _send_test(urls):
+        """Send one real notification to `urls` now, and record it. Returns (ok, message)."""
+        from changedetectionio.notification_service import NotificationContextData, set_basic_notification_vars
+        from changedetectionio.notification.handler import process_notification
+        from changedetectionio.notification import history
+        watches = sorted(datastore.data['watching'].values(),
+                         key=lambda w: (w.history_n >= 2, w.last_changed or 0), reverse=True)
+        watch = watches[0] if watches else None
+        if not watch:
+            return False, gettext('Add at least one website first - the test message describes its latest change.')
+        app_settings = datastore.data['settings']['application']
+        n_object = NotificationContextData({
+            'watch_url': watch.get('url'),
+            'watch_open_url': watch.open_link_override or watch.get('url'),
+            'notification_urls': urls,
+            'notification_title': 'WebPulse test message - notifications are working',
+            'notification_body': 'This is a test message from WebPulse.\n\n'
+                                 'Example - the latest change of {{watch_title}} ({{watch_url}}):\n---\n{{diff}}\n---',
+            'notification_format': app_settings.get('notification_format'),
+            'as_async': False,
+        })
+        dates = list(watch.history.keys())
+        prev = watch.get_history_snapshot(timestamp=dates[-2]) if len(dates) > 1 else ''
+        cur = watch.get_history_snapshot(timestamp=dates[-1]) if dates else ''
+        n_object.update(set_basic_notification_vars(current_snapshot=cur, prev_snapshot=prev, watch=watch,
+                                                    triggered_text='', timestamp_changed=dates[-1] if dates else None))
+        try:
+            sent = process_notification(n_object, datastore)
+        except Exception as e:
+            history.record(datastore.datastore_path, urls, ok=False, kind='test', error=str(e), watch=watch)
+            lines = history.clean_error(str(e), urls).splitlines()
+            return False, (lines[-1][:300] if lines else gettext('sending failed'))
+        history.record(datastore.datastore_path, urls, ok=True, kind='test',
+                       title=(sent or [{}])[0].get('title', ''), watch=watch)
+        return True, ''
+
+    @notifications_blueprint.route("/", methods=['GET', 'POST'])
     @login_optionally_required
     def index():
-        # /settings/notifications/ → apprise (only backend for now).
-        # When a second backend lands this becomes a chooser.
-        return redirect(url_for('settings.notifications.apprise'))
+        from changedetectionio.notification import simple_setup as ss, history
+        app_settings = datastore.data['settings']['application']
+        email_url, telegram_url, other = ss.split_urls(list(app_settings.get('notification_urls') or []))
+        chats = []
+        typed = {}
+
+        def store(new_email, new_telegram, new_other):
+            app_settings['notification_urls'] = [u for u in (new_email, new_telegram) if u] + list(new_other)
+            datastore.commit()
+
+        def back():
+            return redirect(url_for('settings.notifications.index'))
+
+        if request.method == 'POST':
+            f = request.form
+            action = f.get('action', '')
+
+            if action in ('save_email', 'test_email'):
+                # A blank password field means "keep the saved one" - it is never sent to the browser
+                password = f.get('email_password') or ss.email_password_of(email_url)
+                new_url, err = ss.build_email_url(f.get('email_sender'), password, f.get('email_recipients'),
+                                                  f.get('email_smtp_host'), f.get('email_smtp_port'))
+                if err:
+                    flash(err, 'error')
+                    typed = {k: f.get(k, '') for k in ('email_sender', 'email_recipients', 'email_smtp_host', 'email_smtp_port')}
+                else:
+                    store(new_url, telegram_url, other)
+                    if action == 'test_email':
+                        ok, msg = _send_test([new_url])
+                        if ok:
+                            flash(gettext('Saved. A test email was sent - check your inbox (and the spam folder).'))
+                        else:
+                            flash(gettext('Saved, but the test email failed: %(msg)s', msg=msg), 'error')
+                    else:
+                        flash(gettext('Email settings saved.'))
+                    return back()
+
+            elif action == 'remove_email':
+                store(None, telegram_url, other)
+                flash(gettext('Email notifications turned off and the saved password deleted.'))
+                return back()
+
+            elif action == 'find_chat':
+                token = (f.get('telegram_token') or '').strip() or ss.telegram_token_of(telegram_url)
+                chats, err = ss.find_telegram_chats(token)
+                if err:
+                    flash(err, 'error')
+                elif len(chats) == 1:
+                    new_url, _ = ss.build_telegram_url(token, chats[0][0])
+                    if new_url:
+                        store(email_url, new_url, other)
+                        flash(gettext('Found your chat "%(name)s" (ID %(id)s) and saved it. Now press "Save and send test".',
+                                      name=chats[0][1] or '-', id=chats[0][0]))
+                        return back()
+                else:
+                    # Several chats messaged the bot - save the token and let the user pick one
+                    typed = {'telegram_chat_id': ''}
+                    if f.get('telegram_token') and ss.TELEGRAM_TOKEN_RE.match(token):
+                        new_url, _ = ss.build_telegram_url(token, chats[0][0])
+                        store(email_url, new_url, other)
+                        telegram_url = new_url
+
+            elif action in ('save_telegram', 'test_telegram'):
+                token = (f.get('telegram_token') or '').strip() or ss.telegram_token_of(telegram_url)
+                new_url, err = ss.build_telegram_url(token, f.get('telegram_chat_id'))
+                if err:
+                    flash(err, 'error')
+                    typed = {'telegram_chat_id': f.get('telegram_chat_id', '')}
+                else:
+                    store(email_url, new_url, other)
+                    if action == 'test_telegram':
+                        ok, msg = _send_test([new_url])
+                        if ok:
+                            flash(gettext('Saved. A test message was sent - check Telegram.'))
+                        else:
+                            flash(gettext('Saved, but the test message failed: %(msg)s', msg=msg), 'error')
+                    else:
+                        flash(gettext('Telegram settings saved.'))
+                    return back()
+
+            elif action == 'remove_telegram':
+                store(email_url, None, other)
+                flash(gettext('Telegram notifications turned off and the saved bot token deleted.'))
+                return back()
+
+            elif action in ('save_webhook', 'test_webhook'):
+                hooks = [l.strip() for l in (f.get('webhook_urls') or '').splitlines() if l.strip()]
+                webhook_schemes = ('json://', 'jsons://', 'xml://', 'xmls://', 'form://', 'forms://',
+                                   'get://', 'gets://', 'post://', 'posts://', 'put://', 'puts://')
+                if any(not h.lower().startswith(webhook_schemes) for h in hooks):
+                    flash(gettext('Only webhook addresses (json://, posts:// ...) can be entered here.'), 'error')
+                    typed = {'webhook_urls': f.get('webhook_urls', '')}
+                else:
+                    store(email_url, telegram_url, hooks)
+                    if action == 'test_webhook' and hooks:
+                        ok, msg = _send_test(hooks)
+                        flash(gettext('Saved, and a test was sent to the webhook.') if ok
+                              else gettext('Saved, but the webhook test failed: %(msg)s', msg=msg), 'notice' if ok else 'error')
+                    else:
+                        flash(gettext('Webhook addresses saved.'))
+                    return back()
+
+        return render_template(
+            "notifications-simple.html",
+            email=ss.parse_email_url(email_url),
+            telegram=ss.parse_telegram_url(telegram_url),
+            webhooks=other,
+            typed=typed,
+            chats=chats,
+            history=history.read(datastore.datastore_path, limit=100),
+            all_muted=app_settings.get('all_muted', False),
+            muted_watches=sum(1 for w in datastore.data['watching'].values() if w.get('notification_muted')),
+        )
 
     # JSON for the notification setup widget (static/js/notification-setup.js), also used on the
     # watch and group edit pages. See notification/apprise_form.py.

@@ -15,7 +15,7 @@
 <div class="edit-form">
     <div class="tabs collapsable">
         <ul>
-            <li class="tab" id=""><a href="#all-notifications">{{ _('Default Notifications') }}</a></li>
+            <li class="tab" id=""><a href="#all-notifications">{{ _('Advanced notification settings') }}</a></li>
         </ul>
     </div>
     <div class="box-wrap inner">
@@ -23,7 +23,7 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" >
             <div class="tab-pane-inner" id="all-notifications">
                 <span class="pure-form-message-inline">
-                    {{ _('These notifications apply to all web page watches, or you can configure them per group or per watch separately.') }}
+                    {{ _('Advanced: the raw notification addresses and the wording of every alert. For normal use, set up Email and Telegram on the') }} <a href="{{ url_for('settings.notifications.index') }}">{{ _('Notifications page') }}</a>.
                 </span>
                 <br><br>
                 <fieldset>
@@ -41,7 +41,7 @@
             <div id="actions">
                 <div class="pure-control-group">
                     {{ render_button(form.save_button) }}
-                    <a href="{{url_for('settings.settings_page')}}" class="pure-button button-cancel">{{ _('Back to settings') }}</a>
+                    <a href="{{url_for('settings.notifications.index')}}" class="pure-button button-cancel">{{ _('Back to Notifications') }}</a>
                 </div>
             </div>
         </form>

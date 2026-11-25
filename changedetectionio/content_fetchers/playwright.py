@@ -1,3 +1,4 @@
+# Modified 2026 for the simplified (academic) fork of changedetection.io - optional features removed, see CHANGES.md
 import asyncio
 import gc
 import json
@@ -152,11 +153,8 @@ async def capture_full_page_async(page, screenshot_format='JPEG', watch_uuid=Non
     return screenshot_chunks[0]
 
 class fetcher(Fetcher):
-    fetcher_description = "Playwright {}/Javascript".format(
-        os.getenv("PLAYWRIGHT_BROWSER_TYPE", 'chromium').capitalize()
-    )
-    if os.getenv("PLAYWRIGHT_DRIVER_URL"):
-        fetcher_description += " via '{}'".format(os.getenv("PLAYWRIGHT_DRIVER_URL"))
+    # WebPulse: a plain description; the browser address is shown in Settings, not in every form
+    fetcher_description = "Open the page in a real browser - for pages built with JavaScript"
 
     browser_type = ''
     command_executor = ''

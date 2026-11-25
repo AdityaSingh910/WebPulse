@@ -298,7 +298,8 @@ def mode_security():
         t0, w = time.time(), {}
         while time.time() - t0 < 40:
             w = api('GET', f'/watch/{uuid}').json()
-            if w.get('last_checked') and not w.get('checking_now'):
+            # the worker records last_checked and last_error separately; wait for both (or the timeout)
+            if w.get('last_checked') and not w.get('checking_now') and (w.get('last_error') or int(w.get('history_n') or 0)):
                 break
             time.sleep(1)
         check(cid, f'SSRF blocked at fetch: {target}', int(w.get('history_n') or 0) == 0 and w.get('last_error'), w.get('last_error'))

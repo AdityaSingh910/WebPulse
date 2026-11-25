@@ -1,7 +1,8 @@
 {# WebPulse sidebar navigation. Rewritten 2026 for the WebPulse redesign (based on changedetection.io, Apache-2.0, see CHANGES.md) #}
 {%- set ep = request.endpoint or '' -%}
+{%- set jobs_group = job_listings_group|default('Job listings') -%}
 {%- set on_products = ep == 'watchlist.index' and request.args.get('processor') == 'restock_diff' -%}
-{%- set advanced_open = ep.startswith('tags.') or ep.startswith('imports.') or ep.startswith('add_watch_ui.') or ep.startswith('backups') -%}
+{%- set on_jobs = ep == 'watchlist.index' and (request.args.get('tag') or '').strip().lower() == jobs_group.lower() -%}
 <div class="wp-sidebar-inner">
     <a class="wp-brand" href="{{ url_for('home.home_page') }}" title="WebPulse">
         <img class="wp-brand-mark" src="{{ url_for('static_content', group='images', filename='webpulse-mark.svg') }}" alt="" width="34" height="34">
@@ -14,7 +15,7 @@
             <i data-feather="home"></i><span>{{ _('Home') }}</span>
         </a>
         <a href="{{ url_for('watchlist.index') }}"
-           class="wp-nav-item {% if (ep == 'watchlist.index' and not on_products) or ep.startswith('ui.ui_edit') or ep.startswith('ui.ui_diff') or ep.startswith('ui.ui_preview') %}active{% endif %}">
+           class="wp-nav-item {% if (ep == 'watchlist.index' and not on_products and not on_jobs) or ep.startswith('ui.ui_edit') or ep.startswith('ui.ui_diff') or ep.startswith('ui.ui_preview') %}active{% endif %}">
             <i data-feather="globe"></i><span>{{ _('Websites') }}</span>
             <span class="wp-nav-badge js-unread-count" title="{{ _('New changes not yet viewed') }}"
                   {% if not unread_changes_count %}style="display: none"{% endif %}>{{ unread_changes_count|default(0)|format_int_locale }}</span>
@@ -22,29 +23,20 @@
         <a href="{{ url_for('watchlist.index', processor='restock_diff') }}" class="wp-nav-item {% if on_products %}active{% endif %}">
             <i data-feather="tag"></i><span>{{ _('Products') }}</span>
         </a>
-        <a href="{{ url_for('settings.notifications.apprise') }}" class="wp-nav-item {% if ep.startswith('settings.notifications') or ep == 'settings.notification_logs' %}active{% endif %}">
+        <a href="{{ url_for('watchlist.index', tag=jobs_group) }}" class="wp-nav-item {% if on_jobs %}active{% endif %}">
+            <i data-feather="briefcase"></i><span>{{ _('Job listings') }}</span>
+        </a>
+        <a href="{{ url_for('settings.notifications.index') }}" class="wp-nav-item {% if ep.startswith('settings.notifications') or ep == 'settings.notification_logs' %}active{% endif %}">
             <i data-feather="bell"></i><span>{{ _('Notifications') }}</span>
         </a>
-        <a href="{{ url_for('ui.ui_queue.queue_page') }}" class="wp-nav-item {% if ep.startswith('ui.ui_queue') %}active{% endif %}">
-            <i data-feather="cpu"></i><span>{{ _('Queue & workers') }}</span>
-            <span class="wp-nav-badge wp-nav-badge--muted queue-size-int">{{ queue_size }}</span>
+        {%- if demo_lab_enabled|default(false) %}
+        <a href="{{ url_for('demo_lab.demo_page') }}" class="wp-nav-item {% if ep.startswith('demo_lab.') %}active{% endif %}">
+            <i data-feather="sliders"></i><span>{{ _('Controlled demo') }}</span>
         </a>
-
-        <div class="wp-nav-section">{{ _('Settings') }}</div>
-        <a href="{{ url_for('settings.settings_page') }}#general" class="wp-nav-item {% if ep == 'settings.settings_page' %}active{% endif %}">
+        {%- endif %}
+        <a href="{{ url_for('settings.settings_page') }}#general" class="wp-nav-item {% if ep.startswith('settings.') and not ep.startswith('settings.notification') or ep.startswith('tags.') or ep.startswith('imports.') or ep.startswith('backups') or ep.startswith('ui.ui_queue') %}active{% endif %}">
             <i data-feather="settings"></i><span>{{ _('Settings') }}</span>
         </a>
-        <details class="wp-nav-advanced" {% if advanced_open %}open{% endif %}>
-            <summary class="wp-nav-item"><i data-feather="sliders"></i><span>{{ _('Advanced') }}</span><i data-feather="chevron-down" class="wp-chevron"></i></summary>
-            <a href="{{ url_for('settings.settings_page') }}#fetching" class="wp-nav-item wp-nav-sub">{{ _('Advanced settings') }}</a>
-            <a href="{{ url_for('tags.tags_overview_page') }}" class="wp-nav-item wp-nav-sub {% if ep.startswith('tags.') %}active{% endif %}">{{ _('Groups') }}</a>
-            <a href="{{ url_for('imports.import_page') }}" class="wp-nav-item wp-nav-sub {% if ep.startswith('imports.') %}active{% endif %}">{{ _('Import a list of websites') }}</a>
-            {%- if has_visual_browser %}
-            <a href="{{ url_for('add_watch_ui.add_watch_ui_index') }}" class="wp-nav-item wp-nav-sub {% if ep.startswith('add_watch_ui.') %}active{% endif %}">{{ _('Add by pointing at the page') }}</a>
-            {%- endif %}
-            <a href="{{ url_for('backups.create') }}" class="wp-nav-item wp-nav-sub {% if ep.startswith('backups') %}active{% endif %}">{{ _('Backups') }}</a>
-            <a href="{{ url_for('settings.settings_page') }}#about" class="wp-nav-item wp-nav-sub">{{ _('About WebPulse') }}</a>
-        </details>
 
         {# Links added by plugins (register_sidebar_items hook) #}
         {%- for item in plugin_sidebar_items|default([]) if not item.disabled %}

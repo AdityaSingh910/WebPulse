@@ -584,6 +584,16 @@ def _jinja2_filter_datetimestamp(timestamp, format="%Y-%m-%d %H:%M:%S"):
         return timeago.format(int(timestamp), time.time(), 'en_short' if short else 'en')
 
 
+@app.template_filter('format_unix_ts')
+def _jinja2_filter_format_unix_ts(timestamp, fmt='%d %b %Y, %H:%M'):
+    """WebPulse: an exact local date/time, for histories where "3 hours ago" is not precise enough"""
+    from datetime import datetime
+    try:
+        return datetime.fromtimestamp(int(timestamp)).strftime(fmt)
+    except (TypeError, ValueError, OSError):
+        return ''
+
+
 @app.template_filter('pagination_slice')
 def _jinja2_filter_pagination_slice(arr, skip):
     per_page = datastore.data['settings']['application'].get('pager_size', 50)
@@ -1460,6 +1470,11 @@ def changedetection_app(config=None, datastore_o=None):
 
     app.register_blueprint(home.construct_blueprint(datastore, update_q, worker_pool), url_prefix='')
 
+    # WebPulse controlled-demo page (only active when run.ps1 starts the local demo site, see blueprint/demo_lab)
+    import changedetectionio.blueprint.demo_lab as demo_lab
+
+    app.register_blueprint(demo_lab.construct_blueprint(datastore, update_q, queuedWatchMetaData, worker_pool), url_prefix='/demo')
+
     # After the built-in blueprints, so a plugin can't take over a core blueprint name
     from changedetectionio.pluggy_interface import register_plugin_blueprints
 
@@ -1720,6 +1735,12 @@ def notification_runner(worker_id=0):
                         ].get('notification_format')
                     if n_object.get('notification_urls', {}):
                         sent_obj = process_notification(n_object, datastore)
+                        # WebPulse: keep a masked record of the delivery (see notification/history.py)
+                        from changedetectionio.notification import history as notification_history
+                        notification_history.record(
+                            datastore.datastore_path, n_object.get('notification_urls'), ok=True,
+                            title=(sent_obj or [{}])[0].get('title', '') if sent_obj else '',
+                            watch=datastore.data['watching'].get(n_object.get('uuid')) if n_object.get('uuid') else None)
 
                 except Exception as e:
                     logger.error(
@@ -1735,7 +1756,12 @@ def notification_runner(worker_id=0):
                             },
                         )
 
-                    log_lines = str(e).splitlines()
+                    from changedetectionio.notification import history as notification_history
+                    notification_history.record(
+                        datastore.datastore_path, n_object.get('notification_urls'), ok=False, error=str(e),
+                        watch=datastore.data['watching'].get(n_object.get('uuid')) if n_object.get('uuid') else None)
+                    # Passwords/tokens of the notification URLs are masked before they reach the log page
+                    log_lines = notification_history.clean_error(str(e), n_object.get('notification_urls')).splitlines()
                     notification_debug_log += log_lines
 
                     with app.app_context():

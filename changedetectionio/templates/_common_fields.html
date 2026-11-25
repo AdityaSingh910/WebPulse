@@ -142,71 +142,24 @@
    render_common_settings_form. #}
 {% macro notification_part_render_common_settings_form(form, emailprefix, settings_application, extra_notification_token_placeholder_info) %}
                         <div class="pure-control-group">
-                            {# Both quick-add rows share one grid so their inputs line up (stacked on mobile) #}
-                            <div class="notification-add-grid">
-                                {% if emailprefix %}
-                                <div class="notification-add-buttons" id="notification-add-email-preset">
-                                    <label for="add-email-input">{{ _('Add email notification:') }}</label>
-                                    <span class="add-destination-inline">
-                                        <input type="email" id="add-email-input" placeholder="name@example.com" autocomplete="off">
-                                        <a id="add-email-go" class="pure-button button-secondary button-xsmall">{{ _('Add to list') }} <img style="height: 1em; display: inline-block" src="{{url_for('static_content', group='images', filename='email.svg')}}" alt="{{ _('Add an email address') }}"></a>
-                                    </span>
-                                </div>
-                                {% endif %}
-                                {% include '_common_fields-notification.html' %}
-                            </div>
-                            <div id="notification-recipients" class="notification-recipients" style="display: none;"></div>
-                            {{ render_field(form.notification_urls, rows=5, placeholder="Examples:
-    Gitter - gitter://token/room
-    Office365 - o365://TenantID:AccountEmail/ClientID/ClientSecret/TargetEmail
-    AWS SNS - sns://AccessKeyID/AccessSecretKey/RegionName/+PhoneNo
-    SMTPS - mailtos://user:pass@mail.domain.com?to=receivingAddress@example.com",
+                            {# WebPulse: the Apprise "add a service" picker (Discord, Slack, Matrix, ...) is not shown any more.
+                               Email and Telegram are set up on the Notifications page; this list stays for advanced use. #}
+                            {{ render_field(form.notification_urls, rows=4, placeholder="Leave empty to use the Email / Telegram settings from the Notifications page.
+Advanced - one address per line, for example:
+mailtos://user:app-password@gmail.com?to=someone@example.com
+tgram://bot-token/chat-id",
     class="notification-urls" )
                             }}
-                            <span class="pure-form-message-inline">{{ _('Configured list of notifications - Use the "Add a notification service" to add to this.') }}</span><br>
+                            <span class="pure-form-message-inline">{{ _('Notification addresses. Set up Email and Telegram the easy way on the <a href="%(url)s">Notifications page</a>.', url=url_for('settings.notifications.index'))|safe }}</span><br>
                             <div class="notifications-wrapper">
                               <a id="send-test-notification" class="pure-button button-secondary button-xsmall" >{{ _('Send test notification') }}</a> <div class="spinner"  style="display: none;"></div>
-                              <a href="{{url_for('settings.notification_logs')}}" class="pure-button button-secondary button-xsmall" >{{ _('Notification debug logs') }}</a>
+                              <a href="{{url_for('settings.notifications.index')}}#history" class="pure-button button-secondary button-xsmall" >{{ _('Notification history') }}</a>
                               <br>
                                 <div id="notification-test-log" style="display: none;"><span class="pure-form-message-inline">{{ _('Processing..') }}</span></div>
                             </div>
-
-                            <div class="pure-form-message-inline">
-                                <br>
-                                <details class="form-wrapper" id="edit-advanced">
-                                    <summary>{{ _('Show advanced help and tips') }}</summary>
-
-                                    <ul>
-                                        <li>
-                                            {# TRANSLATORS: CJK fonts lack native italics; allow substitution with conventional local styling. dennis-ignore: W303 #}{{ _('<i>Please read the notification services wiki here for important configuration notes</i>')|safe }}.
-                                        </li>
-                                        <li>
-                                            {# TRANSLATORS: FIXME: fragment msgids (#4074) #}
-                                            <code><a target="newwindow" href="https://github.com/caronc/apprise/wiki/Notify_discord">discord://</a></code> {{ _('(or') }}
-                                            <code>https://discord.com/api/webhooks...</code>)) {{ _('only supports a maximum') }}
-                                            <strong>{{ _('2,000 characters') }}</strong> {{ _('of notification text, including the title.') }}
-                                        </li>
-                                        <li>
-                                            <code><a target="newwindow" href="https://github.com/caronc/apprise/wiki/Notify_telegram">tgram://</a></code> {{ _('bots can\'t send messages to other bots, so you should specify chat ID of non-bot user.') }}
-                                        </li>
-                                        <li>
-                                            {# TRANSLATORS: FIXME: fragment msgids (#4074) #}
-                                            <code><a target="newwindow" href="https://github.com/caronc/apprise/wiki/Notify_telegram">tgram://</a></code> {{ _('only supports very limited HTML and can fail when extra tags are sent,') }}
-                                            <a href="https://core.telegram.org/bots/api#html-style">{{ _('read more here') }}</a> {{ _('(or use plaintext/markdown format)') }}
-                                        </li>
-                                        <li>
-                                            {# TRANSLATORS: FIXME: fragment msgids (#4074) #}
-                                            <code>gets://</code>, <code>posts://</code>, <code>puts://</code>, <code>deletes://</code> {{ _('for direct API calls (or omit the') }}
-                                            "<code>s</code>" {{ _('for non-SSL ie') }} <code>get://</code>) {{ _('more help here') }}
-                                        </li>
-                                        <li>{{ _('Accepts the <code>%(token)s</code> placeholders listed below', token='{{token}}')|safe }}</li>
-                                    </ul>
-
-                                </details>
-                            </div>
                         </div>
 <details  class="form-wrapper" id="edit-advanced">
-    <summary>{{ _('Customise notifications') }}</summary>
+    <summary>{{ _('Customise the alert message (title, text and format)') }}</summary>
 
                         <div class="pure-control-group grey-form-border">
                             <div class="pure-control-group">
@@ -240,11 +193,6 @@
                             <div class="">
                                 {{ render_field(form.notification_format , class="notification-format") }}
                                 <span class="pure-form-message-inline">{{ _('Format for all notifications') }}</span>
-                                <div id="discord-html-format-warning" class="inline-warning" style="display: none; margin-top: 6px;">
-                                    <img class="inline-warning-icon" src="{{url_for('static_content', group='images', filename='notice.svg')}}" alt="{{ _('Note') }}" title="{{ _('Note') }}">
-                                    {# TRANSLATORS: FIXME: fragment msgids (#4074) #}
-                                    {{ _('Discord does not render HTML — switch to') }} <strong>{{ _('Plain Text') }}</strong> {{ _('format to avoid') }} <code>&amp;nbsp;</code> {{ _('and other HTML entities appearing literally in your notifications.') }}
-                                </div>
                             </div>
                         </div>
 </details>

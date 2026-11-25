@@ -1,6 +1,8 @@
-# WebPulse Home page (2026): one overview page with a card per feature. Presentation only - it reads the
-# existing datastore / worker pool / queue and reuses existing helpers (price summary, timeago, price format).
-# Based on changedetection.io (Apache-2.0), see CHANGES.md.
+# WebPulse Home page (2026): one overview page organised around what people use WebPulse for - website
+# monitoring, product prices, stock, job listings, price history and notifications - with the technical parts
+# (scheduler, workers, fetch methods, API, storage) summarised in one small "behind the scenes" row.
+# Presentation only: it reads the existing datastore / worker pool / queue and reuses existing helpers
+# (price summary, timeago, price format). Based on changedetection.io (Apache-2.0), see CHANGES.md.
 import os
 import time
 
@@ -9,25 +11,44 @@ from flask import Blueprint, render_template
 from changedetectionio.auth_decorator import login_optionally_required
 from changedetectionio.store import ChangeDetectionStore
 
-DEMO_PREFIXES = ('[Demo]', '[Sample data]')
+JOB_LISTINGS_GROUP = 'Job listings'
 
 
 def construct_blueprint(datastore: ChangeDetectionStore, update_q, worker_pool):
     home_blueprint = Blueprint('home', __name__, template_folder='templates')
 
+    # The "Job listings" group is what makes a website a job-listing monitor; make sure it exists so the
+    # Job listings page is empty (not "everything") before the first careers page is added.
+    if not datastore.tag_exists_by_name(JOB_LISTINGS_GROUP):
+        datastore.add_tag(JOB_LISTINGS_GROUP)
+
+    def job_tag_uuids():
+        return {uuid for uuid, t in datastore.data['settings']['application'].get('tags', {}).items()
+                if (t.get('title') or '').strip().lower() == JOB_LISTINGS_GROUP.lower()}
+
+    def is_job_watch(w, tag_uuids=None):
+        tag_uuids = job_tag_uuids() if tag_uuids is None else tag_uuids
+        return bool(set(w.get('tags') or []) & tag_uuids)
+
+    @home_blueprint.app_context_processor
+    def _job_helpers():
+        # Used by the sidebar (active item) and the website list ("Jobs" badge)
+        uuids = job_tag_uuids()
+        return {'job_listings_group': JOB_LISTINGS_GROUP, 'job_listings_tag_uuid': next(iter(uuids), None)}
+
     @home_blueprint.route('/', methods=['GET'])
     @login_optionally_required
     def home_page():
         from changedetectionio import forms
+        from changedetectionio.blueprint.demo_lab import is_demo_watch, demo_site_url
+        from changedetectionio.notification import history as notification_history
+        from changedetectionio.notification import simple_setup
         from changedetectionio.processors.restock_diff.difference import _build_series, compute_price_summary
 
         app_settings = datastore.data['settings']['application']
-        req_settings = datastore.data['settings']['requests']
         watches = list(datastore.data['watching'].values())
         now = time.time()
-
-        def is_demo(w):
-            return (w.get('title') or '').startswith(DEMO_PREFIXES)
+        job_uuids = job_tag_uuids()
 
         default_backend = app_settings.get('fetch_backend') or 'html_requests'
 
@@ -42,23 +63,27 @@ def construct_blueprint(datastore: ChangeDetectionStore, update_q, worker_pool):
                 return default_interval
             return w.threshold_seconds() or default_interval
 
-        # ---- monitoring / changes ----
-        active = [w for w in watches if not w.get('paused')]
-        unread = [w for w in watches if w.has_unviewed]
-        errors = [w for w in watches if w.get('last_error')]
-        changed = sorted([w for w in watches if w.last_changed], key=lambda w: w.last_changed, reverse=True)[:4]
+        def real_first(ws):
+            """Real websites before controlled-demo ones, then most recently changed first"""
+            return sorted(ws, key=lambda w: (is_demo_watch(w), -(w.last_changed or 0)))
 
-        # ---- products / stock / analytics ----
         products = [w for w in watches if w.get('processor') == 'restock_diff']
+        jobs = [w for w in watches if w.get('processor') != 'restock_diff' and is_job_watch(w, job_uuids)]
+        sites = [w for w in watches if w.get('processor') != 'restock_diff' and not is_job_watch(w, job_uuids)]
+        active = [w for w in watches if not w.get('paused')]
+
+        # ---- website monitoring ----
+        site_changes = sorted([w for w in sites if w.last_changed], key=lambda w: w.last_changed, reverse=True)[:4]
+
+        # ---- products / stock ----
         in_stock = [w for w in products if (w.get('restock') or {}).get('in_stock') is True]
         out_stock = [w for w in products if (w.get('restock') or {}).get('in_stock') is False]
         unknown_stock = [w for w in products if (w.get('restock') or {}).get('in_stock') is None]
-        products_view = sorted(products, key=lambda w: (is_demo(w), -(w.last_changed or 0)))[:5]
 
+        # ---- price analytics: the real product with the longest history (a demo one only if no real one has any) ----
         analytics = None
-        with_history = sorted([w for w in products if w.history_n >= 2], key=lambda w: w.history_n, reverse=True)
-        if with_history:
-            w = with_history[0]
+        with_history = sorted([w for w in products if w.history_n >= 2], key=lambda w: (is_demo_watch(w), -w.history_n))
+        for w in with_history[:1]:
             try:
                 summary = compute_price_summary(_build_series(w))
                 if summary:
@@ -66,59 +91,46 @@ def construct_blueprint(datastore: ChangeDetectionStore, update_q, worker_pool):
             except Exception:
                 analytics = None
 
-        # ---- scraping ----
-        static_n = sum(1 for w in watches if backend(w) == 'html_requests')
-        dynamic_n = sum(1 for w in watches if backend(w) == 'html_webdriver')
-        browser_available = bool(os.getenv('PLAYWRIGHT_DRIVER_URL'))
-        # A ready-made comparison: the same page watched with both fetchers (matched by URL without the query string)
-        pair = None
-        by_base = {}
-        for w in watches:
-            by_base.setdefault(w.get('url', '').split('?')[0], []).append(w)
-        for ws in by_base.values():
-            s = [w for w in ws if backend(w) == 'html_requests' and w.history_n]
-            d = [w for w in ws if backend(w) == 'html_webdriver' and w.history_n]
-            if s and d:
-                pair = {'static': s[0], 'dynamic': d[0]}
-                break
-
-        # ---- scheduling ----
-        due = []
-        for w in active:
-            nxt = (w.get('last_checked') or 0) + interval(w)
-            due.append((max(0, nxt - now), w))
-        due.sort(key=lambda x: x[0])
-
-        # ---- workers / queue ----
-        running = worker_pool.get_running_uuids()
-
         # ---- notifications ----
-        global_urls = app_settings.get('notification_urls') or []
-        watch_urls = [w for w in watches if w.get('notification_urls')]
+        email_url, telegram_url, other_urls = simple_setup.split_urls(app_settings.get('notification_urls') or [])
+        recent_sent = notification_history.read(datastore.datastore_path, limit=200)
 
-        # ---- history ----
-        total_snapshots = sum(w.history_n for w in watches)
-        first_ts = [int(next(iter(w.history.keys()))) for w in watches if w.history_n]
+        # ---- behind the scenes ----
+        due = sorted(((max(0, (w.get('last_checked') or 0) + interval(w) - now)), w.label) for w in active)
 
         return render_template(
             'home.html',
             form=forms.quickWatchForm(None),
-            browser_available=browser_available,
-            watches_total=len(watches), active_n=len(active), paused_n=len(watches) - len(active),
-            demo_n=sum(1 for w in watches if is_demo(w)), errors_n=len(errors),
-            unread_n=len(unread), changed=changed,
-            products=products_view, products_n=len(products),
+            browser_available=bool(os.getenv('PLAYWRIGHT_DRIVER_URL')),
+            is_demo=is_demo_watch,
+            demo_enabled=demo_site_url() is not None,
+            demo_n=sum(1 for w in watches if is_demo_watch(w)),
+            # websites
+            sites=real_first(sites)[:5], sites_n=len(sites), site_changes=site_changes,
+            unread_n=sum(1 for w in sites if w.has_unviewed),
+            errors_n=sum(1 for w in watches if w.get('last_error')),
+            # products and stock
+            products=real_first(products)[:5], products_n=len(products),
             in_stock_n=len(in_stock), out_stock_n=len(out_stock), unknown_stock_n=len(unknown_stock),
-            out_stock=out_stock[:3],
+            stock_list=real_first(in_stock + out_stock)[:4],
+            # jobs
+            jobs=real_first(jobs)[:5], jobs_n=len(jobs), jobs_unread_n=sum(1 for w in jobs if w.has_unviewed),
+            # analytics
             analytics=analytics,
-            static_n=static_n, dynamic_n=dynamic_n, pair=pair,
+            # notifications
+            email_on=bool(email_url), telegram_on=bool(telegram_url), webhooks_n=len(other_urls),
+            all_muted=app_settings.get('all_muted', False),
+            sent_ok_n=sum(1 for h in recent_sent if h.get('ok') and h.get('kind') != 'test'),
+            last_sent=recent_sent[0] if recent_sent else None,
+            # behind the scenes
             default_interval=default_interval, all_paused=app_settings.get('all_paused', False),
-            jitter=req_settings.get('jitter_seconds', 0), next_due=due[:3],
-            workers_n=worker_pool.get_worker_count(), running_n=len(running), queued_n=update_q.qsize(),
-            global_urls_n=len(global_urls), watch_urls_n=len(watch_urls), all_muted=app_settings.get('all_muted', False),
+            next_due=due[0] if due else None,
+            workers_n=worker_pool.get_worker_count(), running_n=len(worker_pool.get_running_uuids()), queued_n=update_q.qsize(),
+            static_n=sum(1 for w in watches if backend(w) == 'html_requests'),
+            dynamic_n=sum(1 for w in watches if backend(w) == 'html_webdriver'),
             api_enabled=app_settings.get('api_access_token_enabled', True),
-            total_snapshots=total_snapshots, oldest_snapshot=min(first_ts) if first_ts else None,
-            is_demo=is_demo,
+            total_snapshots=sum(w.history_n for w in watches),
+            watches_total=len(watches),
         )
 
     return home_blueprint

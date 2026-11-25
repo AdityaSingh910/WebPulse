@@ -26,6 +26,35 @@
             quickUrl.form.addEventListener('submit', normalise);
         }
 
+        // ---- Technical tabs (Settings, website edit page) stay hidden until asked for ----
+        document.querySelectorAll('.wp-tabs-tech').forEach(function (tabs) {
+            var KEY = 'wp-show-tech';
+            var btn = tabs.querySelector('[data-wp-tech-toggle]');
+            var set = function (on) {
+                tabs.classList.toggle('show-tech', on);
+                if (btn) btn.textContent = on ? btn.dataset.hideLabel : btn.dataset.showLabel;
+            };
+            var stored = false;
+            try { stored = localStorage.getItem(KEY) === '1'; } catch (e) { /* storage blocked */ }
+            set(stored);
+            // A technical tab opened directly (#fetching) or because it holds a form error is always shown
+            var sync = function () {
+                var h = location.hash;
+                if (h && tabs.querySelector('.wp-tab-tech a[href$="' + h + '"]')) set(true);
+            };
+            window.addEventListener('hashchange', sync);
+            setTimeout(sync, 0);
+            if (btn) btn.addEventListener('click', function () {
+                var on = !tabs.classList.contains('show-tech');
+                set(on);
+                try { localStorage.setItem(KEY, on ? '1' : '0'); } catch (e) { /* storage blocked */ }
+                if (!on && tabs.querySelector('.wp-tab-tech.active')) {
+                    var first = tabs.querySelector('li.tab a');
+                    if (first && first.hash) location.hash = first.hash;
+                }
+            });
+        });
+
         // ---- Masked secrets: <div class="wp-secret" data-secret="..."> ----
         document.querySelectorAll('.wp-secret').forEach(function (box) {
             var value = box.getAttribute('data-secret') || '';

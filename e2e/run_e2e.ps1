@@ -23,6 +23,13 @@ param(
     [int]$UiAppPort = 5058
 )
 $ErrorActionPreference = 'Stop'
+# Defaults for E19/E20: URLs of removed upstream features (must be 404) and markers of removed UI (must be absent)
+if (-not $ExpectRemoved) {
+    $ExpectRemoved = '/rss,/mcp/v1,/site.webmanifest,/sw.js,/pwa/install-qrcode.svg,/check_proxy/00000000-0000-0000-0000-000000000000/status,/settings/llm,/settings/mcp'
+}
+if (-not $ExpectNoUi) {
+    $ExpectNoUi = 'llm-summary,ai-mode,mcp-token,site.webmanifest,serviceWorker,install-qrcode,rss-token,recheck-proxy,html2canvas,snippet-to-image,chromewebstore,brightdata,oxylabs,language-selector,flag-icons,selenium,puppeteer,ns-quick'
+}
 $repo = Split-Path -Parent $PSScriptRoot
 $work = Join-Path $env:TEMP ("cdio-e2e\{0}-{1}" -f $Label, (Get-Date -Format 'yyyyMMdd-HHmmss'))
 $ds = Join-Path $work 'datastore'
@@ -97,7 +104,9 @@ try {
     # ---- 5. ui (optional): click through the real interface in Microsoft Edge (Playwright) ----
     if ($UI) {
         $dsUi = Join-Path $work 'datastore-ui'; New-Item -ItemType Directory -Force $dsUi | Out-Null
-        Start-App $dsUi $UiAppPort @{ ALLOW_IANA_RESTRICTED_ADDRESSES = 'true' } 'ui' | Out-Null
+        # The fixture doubles as the controlled-demo site, reached through the named demo proxy exactly as run.ps1 sets it up
+        Set-Content (Join-Path $dsUi 'proxies.json') ('{"webpulse-demo-site": {"label": "WebPulse demo site (simulated)", "url": "' + $fix + '"}}')
+        Start-App $dsUi $UiAppPort @{ ALLOW_IANA_RESTRICTED_ADDRESSES = 'true'; WEBPULSE_DEMO_SITE = $fix } 'ui' | Out-Null
         & $Python -I (Join-Path $PSScriptRoot 'ui_test.py') $dsUi "http://127.0.0.1:$UiAppPort" $fix $work
         Stop-ByCmd "*changedetection.py*-p $UiAppPort*"
     }

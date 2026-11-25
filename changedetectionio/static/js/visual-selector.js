@@ -1,3 +1,4 @@
+// Modified 2026 for the simplified (academic) fork of changedetection.io - optional features removed, see CHANGES.md
 // Copyright (C) 2021 Leigh Morresi (dgtlmoon@gmail.com)
 // All rights reserved.
 // yes - this is really a hack, if you are a front-ender and want to help, please get in touch!
@@ -198,6 +199,8 @@ window.initVisualSelector = function (opts) {
     function setScale() {
         $selectorWrapperElem.show();
         selectorImage = $selectorBackgroundElem[0];
+        // WebPulse fix: the Visual Selector pane is not rendered for every website (no screenshot yet)
+        if (!selectorImage) return;
         selectorImageRect = selectorImage.getBoundingClientRect();
 
         $selectorCanvasElem.attr({

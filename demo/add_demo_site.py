@@ -11,6 +11,9 @@ How the controlled demo stays isolated while SSRF protection stays ON:
     website therefore cannot reach anything else.
   * The system-wide default proxy is set to "No proxy", so every other watch connects directly, exactly as
     before. ALLOW_IANA_RESTRICTED_ADDRESSES stays off: private/local addresses remain blocked.
+  * The demo watches send their alerts to the normal Email/Telegram settings. The concurrency-test pages change
+    on every check, so their alerts are muted. (Phase 11 removed the once-a-minute "clock" page and the local
+    json:// receiver, which SSRF protection blocks anyway.)
 """
 import json
 import os
@@ -22,7 +25,6 @@ os.environ.setdefault('DISABLE_VERSION_CHECK', 'true')
 
 PROXY_KEY = 'webpulse-demo-site'
 PROXY = {PROXY_KEY: {'label': 'WebPulse demo site (simulated)', 'url': 'http://127.0.0.1:8199'}}
-NOTIFY = 'json://127.0.0.1:8199/notify'
 GROUP = 'Demo site (simulated)'
 GROUP_SLOW = 'Demo site - concurrency test (simulated)'
 
@@ -41,19 +43,21 @@ def main():
     ds.data['settings']['requests']['proxy'] = 'no-proxy'   # everything not explicitly on the demo proxy goes direct
 
     existing = {w.get('title') for w in ds.data['watching'].values()}
+    from changedetectionio.blueprint.ui.views import job_keywords_rule
     demo = [
         ('http://news.webpulse-demo.test/page.html', GROUP,
-         {'title': '[Demo] Company news page', 'notification_urls': [NOTIFY], **every(hours=24)}),
+         {'title': '[Demo] Company news page', **every(hours=24)}),
         ('http://shop.webpulse-demo.test/product.html', GROUP,
-         {'title': '[Demo] Wireless earbuds', 'processor': 'restock_diff', 'notification_urls': [NOTIFY],
+         {'title': '[Demo] Wireless earbuds', 'processor': 'restock_diff',
           'processor_config_restock_diff': {'in_stock_processing': 'all_changes', 'follow_price_changes': True},
           **every(hours=24)}),
-        ('http://clock.webpulse-demo.test/slow.html?d=0&n=clock', GROUP,
-         {'title': '[Demo] Clock page - checked automatically every minute', 'history_snapshot_max_length': 30,
-          **every(minutes=1)}),
+        ('http://careers.webpulse-demo.test/jobs.html', f'Job listings, {GROUP}',
+         {'title': '[Demo] DemoCorp careers page - technical roles', 'include_filters': ['#job-list'],
+          'extract_text': [job_keywords_rule('engineer, developer, software, backend, data, python, intern, sde')],
+          'filter_text_added': True, 'filter_text_removed': True, 'filter_text_replaced': True, **every(hours=24)}),
     ] + [
         (f'http://slow.webpulse-demo.test/slow.html?d=6&n={i}', GROUP_SLOW,
-         {'title': f'[Demo] Slow page {i} (takes 6 seconds)', **every(hours=24)}) for i in range(1, 7)
+         {'title': f'[Demo] Slow page {i} (takes 6 seconds)', 'notification_muted': True, **every(hours=24)}) for i in range(1, 7)
     ]
     for url, group, extras in demo:
         if extras['title'] in existing:

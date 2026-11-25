@@ -1,0 +1,169 @@
+{# WebPulse Notifications page - Email, Telegram and the notification history (2026, based on changedetection.io, Apache-2.0, see CHANGES.md) #}
+{% extends 'base.html' %}
+{% block content %}
+<div class="wp-page">
+  <p class="wp-lead">{{ _('WebPulse sends you a message when a page you watch changes, when a price changes, when a product comes back in stock or when a new job appears. Use Email, Telegram or both. Both are free.') }}</p>
+
+  {% if all_muted %}
+  <p class="wp-banner wp-banner--warn"><i data-feather="bell-off"></i>{{ _('All alerts are muted right now. Nothing will be sent until you press “Muted” at the top of the page.') }}</p>
+  {% endif %}
+
+  <div class="wp-cols">
+    {# ---------------- Email ---------------- #}
+    <section class="wp-card wp-panel" id="email">
+      <header class="wp-panel-head">
+        <span class="wp-ico"><i data-feather="mail"></i></span>
+        <h2>{{ _('Email') }}</h2>
+        {% if email %}<span class="wp-status wp-status--on">{{ _('On') }}</span>{% else %}<span class="wp-status">{{ _('Off') }}</span>{% endif %}
+      </header>
+      <form method="POST" action="{{ url_for('settings.notifications.index') }}#email" class="wp-form" autocomplete="off">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label for="email_sender">{{ _('Your email address') }}</label>
+        <input type="email" id="email_sender" name="email_sender" placeholder="yourname@gmail.com"
+               value="{{ typed.email_sender if typed.email_sender is defined else (email.sender if email else '') }}">
+        <small>{{ _('WebPulse signs in to this account to send the alerts. Gmail, Outlook, Hotmail, Yahoo and Zoho work without any other setting.') }}</small>
+
+        <label for="email_password">{{ _('App password') }}</label>
+        <input type="password" id="email_password" name="email_password" autocomplete="new-password"
+               placeholder="{{ _('Saved - leave empty to keep it') if email and email.has_password else _('16-character app password') }}">
+        <small>{{ _('Not your normal password. Create an app password in your account’s security settings (see “How do I get an app password?” below).') }}</small>
+
+        <label for="email_recipients">{{ _('Send alerts to') }}</label>
+        <input type="text" id="email_recipients" name="email_recipients" placeholder="{{ _('Leave empty to send to yourself') }}"
+               value="{{ typed.email_recipients if typed.email_recipients is defined else (email.recipients if email and email.recipients != email.sender else '') }}">
+        <small>{{ _('Separate several addresses with commas.') }}</small>
+
+        <details class="wp-more" {% if (email and email.smtp_host) or typed.email_smtp_host %}open{% endif %}>
+          <summary>{{ _('Use a different mail server') }}</summary>
+          <label for="email_smtp_host">{{ _('Mail server (SMTP)') }}</label>
+          <input type="text" id="email_smtp_host" name="email_smtp_host" placeholder="smtp.example.com"
+                 value="{{ typed.email_smtp_host if typed.email_smtp_host is defined else (email.smtp_host if email else '') }}">
+          <label for="email_smtp_port">{{ _('Port') }}</label>
+          <input type="text" id="email_smtp_port" name="email_smtp_port" placeholder="587" inputmode="numeric"
+                 value="{{ typed.email_smtp_port if typed.email_smtp_port is defined else (email.smtp_port if email else '') }}">
+        </details>
+
+        <div class="wp-form-actions">
+          <button type="submit" name="action" value="test_email" class="wp-btn" id="email-test"><i data-feather="send"></i>{{ _('Save and send test') }}</button>
+          <button type="submit" name="action" value="save_email" class="wp-btn wp-btn--ghost">{{ _('Save') }}</button>
+          {% if email %}<button type="submit" name="action" value="remove_email" class="wp-btn wp-btn--ghost wp-btn--danger">{{ _('Turn off') }}</button>{% endif %}
+        </div>
+      </form>
+      <details class="wp-howto">
+        <summary>{{ _('How do I get an app password?') }}</summary>
+        <p><strong>Gmail</strong></p>
+        <ol>
+          <li>{{ _('Turn on 2-Step Verification for your Google account (myaccount.google.com → Security).') }}</li>
+          <li>{{ _('Open myaccount.google.com/apppasswords, type the name “WebPulse” and press Create.') }}</li>
+          <li>{{ _('Copy the 16-letter password and paste it above. You can delete it there at any time.') }}</li>
+        </ol>
+        <p><strong>Outlook / Hotmail</strong></p>
+        <ol>
+          <li>{{ _('Turn on two-step verification at account.microsoft.com → Security.') }}</li>
+          <li>{{ _('Under “App passwords”, create a new one and paste it above.') }}</li>
+        </ol>
+        <p class="wp-note"><i data-feather="lock"></i>{{ _('The password is stored only on this computer, in the WebPulse data folder. It is never shown again on this page or written to any log.') }}</p>
+      </details>
+    </section>
+
+    {# ---------------- Telegram ---------------- #}
+    <section class="wp-card wp-panel" id="telegram">
+      <header class="wp-panel-head">
+        <span class="wp-ico"><i data-feather="send"></i></span>
+        <h2>{{ _('Telegram') }}</h2>
+        {% if telegram %}<span class="wp-status wp-status--on">{{ _('On') }}</span>{% else %}<span class="wp-status">{{ _('Off') }}</span>{% endif %}
+      </header>
+      <form method="POST" action="{{ url_for('settings.notifications.index') }}#telegram" class="wp-form" autocomplete="off">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label for="telegram_token">{{ _('Bot token') }}</label>
+        <input type="password" id="telegram_token" name="telegram_token" autocomplete="new-password"
+               placeholder="{{ _('Saved (%(hint)s) - leave empty to keep it', hint=telegram.token_hint) if telegram and telegram.has_token else '123456789:AAH...' }}">
+        <small>{{ _('From @BotFather in Telegram (see the steps below).') }}</small>
+
+        <label for="telegram_chat_id">{{ _('Your chat ID') }}</label>
+        {% if chats|length > 1 %}
+        <select id="telegram_chat_id" name="telegram_chat_id">
+          {% for cid, name in chats %}<option value="{{ cid }}">{{ name or cid }} ({{ cid }})</option>{% endfor %}
+        </select>
+        <small>{{ _('Several chats have messaged this bot. Pick yours.') }}</small>
+        {% else %}
+        <div class="wp-inline">
+          <input type="text" id="telegram_chat_id" name="telegram_chat_id" placeholder="{{ _('for example 123456789') }}" inputmode="numeric"
+                 value="{{ typed.telegram_chat_id if typed.telegram_chat_id is defined else (telegram.chat_id if telegram else '') }}">
+          <button type="submit" name="action" value="find_chat" class="wp-btn wp-btn--ghost" id="telegram-find-chat"><i data-feather="search"></i>{{ _('Find my chat ID') }}</button>
+        </div>
+        <small>{{ _('Send any message to your bot first, then press “Find my chat ID”.') }}</small>
+        {% endif %}
+
+        <div class="wp-form-actions">
+          <button type="submit" name="action" value="test_telegram" class="wp-btn" id="telegram-test"><i data-feather="send"></i>{{ _('Save and send test') }}</button>
+          <button type="submit" name="action" value="save_telegram" class="wp-btn wp-btn--ghost">{{ _('Save') }}</button>
+          {% if telegram %}<button type="submit" name="action" value="remove_telegram" class="wp-btn wp-btn--ghost wp-btn--danger">{{ _('Turn off') }}</button>{% endif %}
+        </div>
+      </form>
+      <details class="wp-howto">
+        <summary>{{ _('How do I create a Telegram bot?') }}</summary>
+        <ol>
+          <li>{{ _('In Telegram, search for @BotFather (the official one, with a blue tick) and press Start.') }}</li>
+          <li>{{ _('Send /newbot, choose a name (for example “WebPulse alerts”) and a username ending in “bot”.') }}</li>
+          <li>{{ _('BotFather replies with a token like 123456789:AAH… Paste it in “Bot token” above.') }}</li>
+          <li>{{ _('Open your new bot (BotFather gives a t.me link), press Start and send “hi”.') }}</li>
+          <li>{{ _('Press “Find my chat ID”, then “Save and send test”.') }}</li>
+        </ol>
+        <p class="wp-note"><i data-feather="lock"></i>{{ _('Anyone with the bot token can send messages as your bot, so keep it private. WebPulse stores it only on this computer and never shows it again.') }}</p>
+      </details>
+    </section>
+  </div>
+
+  {# ---------------- History ---------------- #}
+  <section class="wp-card" id="history">
+    <header class="wp-panel-head">
+      <span class="wp-ico"><i data-feather="clock"></i></span>
+      <h2>{{ _('Notification history') }}</h2>
+      <span class="wp-muted">{{ _('Every message WebPulse tried to send, newest first') }}</span>
+    </header>
+    {% if history %}
+    <div class="wp-table-wrap">
+      <table class="wp-table" id="notification-history">
+        <thead><tr><th>{{ _('When') }}</th><th>{{ _('About') }}</th><th>{{ _('Sent to') }}</th><th>{{ _('Kind') }}</th><th>{{ _('Result') }}</th></tr></thead>
+        <tbody>
+        {% for h in history %}
+          <tr>
+            <td class="wp-nowrap" title="{{ h.ts|format_timestamp_timeago }}">{{ h.ts|format_unix_ts if h.ts is defined else '' }}</td>
+            <td>{% if h.watch_uuid %}<a href="{{ url_for('ui.ui_diff.diff_history_page', uuid=h.watch_uuid) }}">{{ h.watch_title or h.watch_url }}</a>{% else %}—{% endif %}
+              {% if h.title %}<div class="wp-muted wp-small">{{ h.title }}</div>{% endif %}</td>
+            <td>{% for d in h.destinations %}<span class="wp-chip">{{ d.channel }}</span>{% endfor %}</td>
+            <td>{{ _('Test') if h.kind == 'test' else _('Change alert') }}</td>
+            <td>{% if h.ok %}<span class="wp-status wp-status--on">{{ _('Delivered to the service') }}</span>
+                {% else %}<span class="wp-status wp-status--bad">{{ _('Failed') }}</span>
+                  {% if h.error %}<details class="wp-error"><summary>{{ _('Why?') }}</summary><pre>{{ h.error }}</pre></details>{% endif %}{% endif %}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="wp-note"><i data-feather="info"></i>{{ _('“Delivered to the service” means the email server or Telegram accepted the message. Check your inbox or Telegram to see it arrive.') }}</p>
+    {% else %}
+    <p class="wp-empty">{{ _('Nothing has been sent yet. Set up Email or Telegram above and press “Save and send test”.') }}</p>
+    {% endif %}
+    {% if muted_watches %}<p class="wp-note"><i data-feather="bell-off"></i>{{ ngettext('%(num)s website has its alerts muted.', '%(num)s websites have their alerts muted.', muted_watches) }}</p>{% endif %}
+  </section>
+
+  {# ---------------- Technical ---------------- #}
+  <details class="wp-card wp-technical" id="technical" {% if typed.webhook_urls is defined %}open{% endif %}>
+    <summary>{{ _('Technical: webhooks and message wording') }}</summary>
+    <form method="POST" action="{{ url_for('settings.notifications.index') }}#technical" class="wp-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label for="webhook_urls">{{ _('Webhook addresses (for developers and automated tests)') }}</label>
+      <textarea id="webhook_urls" name="webhook_urls" rows="3" placeholder="json://127.0.0.1:8080/hook">{{ typed.webhook_urls if typed.webhook_urls is defined else webhooks|join('\n') }}</textarea>
+      <small>{{ _('One per line. WebPulse posts every alert as JSON to these addresses. Addresses on this computer or a private network are blocked by the SSRF protection.') }}</small>
+      <div class="wp-form-actions">
+        <button type="submit" name="action" value="test_webhook" class="wp-btn wp-btn--ghost" id="webhook-test">{{ _('Save and send test') }}</button>
+        <button type="submit" name="action" value="save_webhook" class="wp-btn wp-btn--ghost">{{ _('Save') }}</button>
+      </div>
+    </form>
+    <p><a href="{{ url_for('settings.notifications.apprise') }}">{{ _('Change the wording and format of alert messages') }}</a> ·
+       <a href="{{ url_for('settings.notification_logs') }}">{{ _('Technical send log (since the last restart)') }}</a></p>
+  </details>
+</div>
+{% endblock %}

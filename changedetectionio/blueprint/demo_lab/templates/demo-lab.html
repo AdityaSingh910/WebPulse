@@ -1,0 +1,108 @@
+{# WebPulse Controlled demo page (2026, based on changedetection.io, Apache-2.0, see CHANGES.md) #}
+{% extends 'base.html' %}
+{% macro watch_rows(watches) %}
+  {% if watches %}
+  <ul class="wp-list wp-demo-watches">
+    {% for w in watches %}
+    {%- set r = w.get('restock') or {} -%}
+    <li>
+      <span class="wp-trunc"><a href="{{ url_for('ui.ui_diff.diff_history_page', uuid=w.uuid) }}">{{ w.label }}</a>
+        <span class="wp-muted wp-small">· {{ _('checked') }} {{ w.last_checked|format_timestamp_timeago }}
+          · {{ w.history_n }} {{ _('versions saved') }}</span></span>
+      <span>
+        {% if w.get('processor') == 'restock_diff' %}
+          {% if r.get('price') is not none %}<strong class="wp-price">{{ r.get('price')|format_price(r.get('currency')) }}</strong>{% endif %}
+          {% if r.get('in_stock') is true %}<span class="wp-status wp-status--on">{{ _('In stock') }}</span>{% elif r.get('in_stock') is false %}<span class="wp-status wp-status--bad">{{ _('Out of stock') }}</span>{% endif %}
+        {% endif %}
+        {% if w.get('last_error') %}<span class="wp-status wp-status--bad" title="{{ w.get('last_error') }}">{{ _('Error') }}</span>{% endif %}
+        <a class="wp-btn wp-btn--ghost wp-btn--sm" href="{{ url_for('ui.ui_diff.diff_history_page', uuid=w.uuid) }}">{{ _('Price history') if w.get('processor') == 'restock_diff' else _('View changes') }}</a>
+      </span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}<p class="wp-empty">{{ _('No WebPulse watch uses this demo page. Run demo\\setup_presentation.py to add it.') }}</p>{% endif %}
+{% endmacro %}
+
+{% block content %}
+<div class="wp-page">
+  <p class="wp-banner wp-banner--demo"><i data-feather="sliders"></i><span><strong>{{ _('Controlled demonstration.') }}</strong>
+    {{ _('These buttons change WebPulse’s own small demo website on this computer, so you can show a price drop, a restock or a new job at any moment. WebPulse then checks it with exactly the same code it uses for real websites. Nothing here is a real shop or company.') }}</span></p>
+
+  {% if not enabled %}
+  <section class="wp-card"><p class="wp-empty">{{ _('The controlled demo site is not running. Start WebPulse with .\\run.ps1 (without -NoDemoSite).') }}</p></section>
+  {% elif state is none %}
+  <section class="wp-card"><p class="wp-empty">{{ _('The demo site did not answer. Stop WebPulse (Ctrl+C) and start it again with .\\run.ps1.') }}</p></section>
+  {% else %}
+  <p class="wp-note"><i data-feather="bell"></i>
+    {% if alerts_on %}{{ _('Every change below also sends a real alert to your Email/Telegram.') }} <a href="{{ url_for('settings.notifications.index') }}#history">{{ _('See the notification history') }}</a>
+    {% else %}{{ _('Email/Telegram is not set up yet, so changes are detected but no alert is sent.') }} <a href="{{ url_for('settings.notifications.index') }}">{{ _('Set up notifications') }}</a>{% endif %}</p>
+
+  <div class="wp-cols wp-cols--3">
+    <section class="wp-card wp-panel" id="demo-product">
+      <header class="wp-panel-head"><span class="wp-ico wp-ico--accent"><i data-feather="tag"></i></span><h2>{{ _('Product price and stock') }}</h2></header>
+      <dl class="wp-dl wp-dl--tight">
+        <dt>{{ _('Product') }}</dt><dd>{{ state.name }}</dd>
+        <dt>{{ _('Price on the demo shop') }}</dt><dd><strong>₹{{ '{:,.0f}'.format(state.price|float) }}</strong></dd>
+        <dt>{{ _('Stock on the demo shop') }}</dt><dd>{{ _('In stock') if state.stock == 'InStock' else _('Out of stock') }}</dd>
+      </dl>
+      <form method="POST" action="{{ url_for('demo_lab.demo_action') }}" class="wp-demo-actions">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="wp-btn wp-btn--accent" name="action" value="price_drop"><i data-feather="trending-down"></i>{{ _('Drop the price') }}</button>
+        <button class="wp-btn wp-btn--ghost" name="action" value="price_rise"><i data-feather="trending-up"></i>{{ _('Raise the price') }}</button>
+        {% if state.stock == 'InStock' %}
+        <button class="wp-btn wp-btn--ghost" name="action" value="out_of_stock"><i data-feather="x-circle"></i>{{ _('Sell out') }}</button>
+        {% else %}
+        <button class="wp-btn" name="action" value="back_in_stock"><i data-feather="check-circle"></i>{{ _('Restock') }}</button>
+        {% endif %}
+      </form>
+      <h3 class="wp-h3">{{ _('What WebPulse has seen') }}</h3>
+      {{ watch_rows(groups.product) }}
+    </section>
+
+    <section class="wp-card wp-panel" id="demo-jobs">
+      <header class="wp-panel-head"><span class="wp-ico"><i data-feather="briefcase"></i></span><h2>{{ _('Job listings') }}</h2></header>
+      <p class="wp-small wp-muted">{{ _('Open positions on the demo careers page:') }}</p>
+      <ul class="wp-joblist">{% for j in jobs %}<li>{{ j }}</li>{% else %}<li class="wp-muted">{{ _('none') }}</li>{% endfor %}</ul>
+      <form method="POST" action="{{ url_for('demo_lab.demo_action') }}" class="wp-demo-actions">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="wp-btn" name="action" value="add_job"><i data-feather="plus"></i>{{ _('Publish a new job') }}</button>
+        <button class="wp-btn wp-btn--ghost" name="action" value="modify_job"><i data-feather="edit-2"></i>{{ _('Change a job') }}</button>
+        <button class="wp-btn wp-btn--ghost" name="action" value="remove_job"><i data-feather="minus"></i>{{ _('Remove a job') }}</button>
+        <button class="wp-btn wp-btn--ghost" name="action" value="add_irrelevant_job" title="{{ _('Shows the keyword filter at work') }}"><i data-feather="filter"></i>{{ _('Publish a non-technical job') }}</button>
+      </form>
+      <p class="wp-note"><i data-feather="info"></i>{{ _('The careers page also has a visitor counter and a clock that change on every visit. WebPulse watches only the job list, so those changes are ignored.') }}</p>
+      <h3 class="wp-h3">{{ _('What WebPulse has seen') }}</h3>
+      {{ watch_rows(groups.jobs) }}
+    </section>
+
+    <section class="wp-card wp-panel" id="demo-news">
+      <header class="wp-panel-head"><span class="wp-ico"><i data-feather="file-text"></i></span><h2>{{ _('Website content') }}</h2></header>
+      <p class="wp-small wp-muted">{{ _('Text on the demo news page:') }}</p>
+      <blockquote class="wp-quote">{{ state.text }}</blockquote>
+      <form method="POST" action="{{ url_for('demo_lab.demo_action') }}" class="wp-demo-actions">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="wp-btn" name="action" value="news_update"><i data-feather="edit-3"></i>{{ _('Change the page text') }}</button>
+      </form>
+      <h3 class="wp-h3">{{ _('What WebPulse has seen') }}</h3>
+      {{ watch_rows(groups.news) }}
+    </section>
+  </div>
+
+  <form method="POST" action="{{ url_for('demo_lab.demo_action') }}" class="wp-demo-reset">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="wp-btn wp-btn--ghost wp-btn--sm" name="action" value="reset"><i data-feather="rotate-ccw"></i>{{ _('Reset the demo site') }}</button>
+    <span class="wp-muted wp-small">{{ _('Puts the demo shop, careers page and news page back to how they started. The history WebPulse recorded is kept.') }}</span>
+  </form>
+  {% endif %}
+</div>
+{% if enabled and state is not none %}
+<script>
+  // After a button press, refresh once so the result of the check WebPulse just started is visible
+  (function () {
+    if (document.querySelector('ul.messages li:not(.error)')) {
+      setTimeout(function () { window.location.replace(window.location.pathname); }, 4500);
+    }
+  })();
+</script>
+{% endif %}
+{% endblock %}

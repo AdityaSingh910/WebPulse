@@ -1010,3 +1010,137 @@ body.wp-public .wp-topbar { display: none; }
 
 .wp-stats.wp-stats--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .wp-stats:has(> div:nth-child(2):last-child) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+// =====================================================================================================
+// Phase 11 (2026): simpler pages - Notifications, Controlled demo, Home use-case cards, technical toggles
+// =====================================================================================================
+.wp-page { width: 100%; display: flex; flex-direction: column; gap: 18px; }
+.wp-lead { margin: 0; color: var(--wp-muted); font-size: 0.95rem; max-width: 70ch; }
+.wp-muted { color: var(--wp-muted); }
+.wp-small { font-size: 0.8rem; }
+.wp-nowrap { white-space: nowrap; }
+.wp-h3 { margin: 6px 0 0; font-size: 0.86rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--wp-muted); }
+
+.wp-banner {
+  margin: 0; display: flex; gap: 10px; align-items: flex-start; padding: 12px 16px;
+  border-radius: var(--wp-radius); border: 1px solid var(--wp-border); background: var(--wp-surface-2); font-size: 0.9rem;
+  svg.feather { width: 18px; height: 18px; flex: 0 0 auto; margin-top: 1px; }
+  &.wp-banner--warn { background: var(--wp-accent-soft); border-color: var(--wp-accent); }
+  &.wp-banner--demo { background: var(--wp-accent-soft); border-color: var(--wp-accent); }
+}
+
+.wp-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start;
+  &.wp-cols--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.wp-card { padding: 18px 20px; box-sizing: border-box; min-width: 0; }
+.wp-panel { display: flex; flex-direction: column; gap: 12px; }
+.wp-panel-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  h2 { margin: 0; font-size: 1.08rem; }
+  .wp-muted { font-size: 0.82rem; } }
+
+.wp-status {
+  display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 0.74rem; font-weight: 700; white-space: nowrap;
+  background: var(--wp-surface-2); color: var(--wp-muted); border: 1px solid var(--wp-border);
+  &.wp-status--on { background: var(--wp-success-soft); color: var(--wp-success); border-color: transparent; }
+  &.wp-status--bad { background: var(--wp-danger-soft); color: var(--wp-danger); border-color: transparent; }
+}
+.wp-panel-head .wp-status { margin-left: auto; }
+.wp-chip {
+  display: inline-block; border-radius: 6px; padding: 0 6px; margin-right: 4px; font-size: 0.72rem; font-weight: 700;
+  background: var(--wp-primary-soft); color: var(--wp-primary-ink); vertical-align: 1px;
+  &.wp-chip--demo { background: var(--wp-accent-soft); color: var(--wp-accent); }
+}
+
+.wp-form {
+  display: flex; flex-direction: column; gap: 4px; margin: 0;
+  label { font-weight: 600; font-size: 0.88rem; margin-top: 8px; color: var(--wp-ink); }
+  input[type=text], input[type=email], input[type=password], select, textarea {
+    width: 100%; box-sizing: border-box; min-height: 38px; padding: 7px 10px; font: inherit;
+    border: 1px solid var(--wp-border-strong); border-radius: 8px; background: var(--wp-surface); color: var(--wp-text); }
+  textarea { font-family: var(--wp-mono); font-size: 0.85rem; }
+  small { color: var(--wp-muted); font-size: 0.78rem; line-height: 1.35; }
+}
+.wp-form-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.wp-inline { display: flex; gap: 8px; input { flex: 1 1 auto; min-width: 0; } .wp-btn { flex: 0 0 auto; } }
+.wp-btn.wp-btn--danger { color: var(--wp-danger) !important; }
+.wp-more, .wp-howto {
+  margin-top: 6px;
+  summary { cursor: pointer; color: var(--wp-primary-ink); font-weight: 600; font-size: 0.86rem; }
+  &[open] { padding-bottom: 4px; }
+  ol { margin: 6px 0 8px; padding-left: 20px; font-size: 0.86rem; line-height: 1.5; }
+  p { margin: 8px 0 2px; font-size: 0.86rem; }
+}
+.wp-more[open] { display: flex; flex-direction: column; gap: 4px; }
+
+.wp-table-wrap { width: 100%; overflow-x: auto; }
+.wp-table {
+  width: 100%; border-collapse: collapse; font-size: 0.85rem;
+  th { text-align: left; font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--wp-muted); padding: 6px 8px; border-bottom: 1px solid var(--wp-border); }
+  td { padding: 8px; border-bottom: 1px solid var(--wp-border); vertical-align: top; }
+}
+.wp-error { summary { cursor: pointer; font-size: 0.78rem; color: var(--wp-danger); }
+  pre { white-space: pre-wrap; word-break: break-word; font-size: 0.75rem; max-width: 46ch; margin: 4px 0 0; } }
+.wp-technical > summary { cursor: pointer; font-weight: 600; color: var(--wp-muted); }
+.wp-technical[open] > summary { margin-bottom: 10px; }
+
+// Home: the six use-case cards, three per row on wide screens
+.wp-cards.wp-cards--main { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.wp-hero-more { flex: 1 0 100%; label { font-weight: 600 !important; font-size: 0.84rem !important; margin-top: 6px; }
+  input[type=text] { height: 38px !important; font-size: 0.9rem !important; flex: none !important; width: 100%; }
+  small { color: var(--wp-muted); font-size: 0.76rem; } }
+.wp-demo-strip { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 14px; align-items: center;
+  h3 { margin: 0 0 2px; font-size: 1rem; } p { margin: 0; font-size: 0.86rem; } }
+.wp-behind { h3 { margin: 0 0 8px; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--wp-muted); } }
+.wp-behind-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.wp-tile {
+  display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: var(--wp-radius);
+  border: 1px solid var(--wp-border); background: var(--wp-surface); text-decoration: none !important; color: var(--wp-text) !important;
+  svg.feather { width: 16px; height: 16px; color: var(--wp-primary); }
+  strong { font-size: 0.86rem; color: var(--wp-ink); }
+  span { font-size: 0.76rem; color: var(--wp-muted); }
+  &:hover { border-color: var(--wp-primary); }
+}
+
+// Controlled demo page
+.wp-demo-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
+.wp-demo-reset { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0; }
+.wp-joblist { margin: 0; padding-left: 18px; font-size: 0.88rem; line-height: 1.6; }
+.wp-quote { margin: 0; padding: 8px 12px; border-left: 3px solid var(--wp-primary); background: var(--wp-surface-2); font-size: 0.88rem; }
+.wp-dl.wp-dl--tight { margin: 0; }
+.wp-demo-watches li { flex-wrap: wrap; }
+
+// Settings: "More tools" list
+.wp-tools { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--wp-border);
+  h4 { margin: 0 0 8px; }
+  ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  li { font-size: 0.9rem; span { color: var(--wp-muted); font-size: 0.8rem; margin-left: 6px; } }
+  a { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
+  svg.feather { width: 15px; height: 15px; }
+  .wp-danger-link { color: var(--wp-danger) !important; } }
+
+// Technical tabs: hidden until "Show technical settings" is pressed
+.wp-tabs-tech:not(.show-tech) .wp-tab-tech { display: none !important; }
+.tabs li.wp-tab-toggle { align-self: center; margin-left: 10px !important; border: 0 !important; background: transparent !important;
+  .wp-btn { white-space: nowrap; } }
+
+@media only screen and (max-width: $desktop-wide-breakpoint) {
+  .wp-cols, .wp-cols.wp-cols--3, .wp-cards.wp-cards--main { grid-template-columns: 1fr; }
+  .wp-behind-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .wp-demo-strip { grid-template-columns: 1fr; }
+}
+@media only screen and (min-width: $desktop-wide-breakpoint) and (max-width: 1280px) {
+  .wp-cards.wp-cards--main { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .wp-cols.wp-cols--3 { grid-template-columns: 1fr; }
+  .wp-behind-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+// Lists: the name shrinks (with an ellipsis) so the price/status column always stays inside the card
+.wp-list li > .wp-trunc { flex: 1 1 auto; min-width: 0; }
+.wp-list li > .wp-trunc a { display: inline; }
+
+// Controlled demo: show the whole watch name and its details (wrapping), not an ellipsis
+.wp-demo-watches li > .wp-trunc { white-space: normal; overflow: visible; }
+.wp-tools { margin-bottom: 18px; }
+
+// Website list: job-listing monitors get their own badge
+.processor-badge.processor-badge-jobs { background: #ede9fe !important; color: #5b21b6 !important; border-color: transparent !important; }
+html[data-darkmode="true"] .processor-badge.processor-badge-jobs { background: #2e1065 !important; color: #ddd6fe !important; }

@@ -24,17 +24,26 @@ contributors, version 0.70.4, used under the Apache License 2.0.
 
 ## Features
 
-| Feature | What you get |
+The Home page is organised around six things people monitor:
+
+| Use case | What you get |
 |---|---|
-| Website monitoring and change detection | Text and JSON change detection, side-by-side differences, and CSS/XPath/JSONPath filters, triggers and ignore rules |
-| Web scraping | A fast plain-HTTP fetcher, plus a JavaScript browser fetcher (Playwright driving the Microsoft Edge that ships with Windows) |
-| Price and stock monitoring | Prices and availability from schema.org JSON-LD, microdata or a CSS selector, with price-change thresholds |
-| Historical price analytics | A price/stock chart, average, all-time low, "cheaper than N % of tracked prices", and XLSX export |
-| Scheduling and concurrency | Per-watch intervals, weekly time windows, and parallel async workers with a live activity graph |
-| Notifications | Email, Discord, Telegram, Slack, webhooks and 140+ more through Apprise (all free) |
-| REST API | `/api/v1/*` with an API key (masked in Settings, with reveal and copy) and OpenAPI validation |
-| Data persistence | A plain-file datastore, backups, and import of URL lists |
-| Interface | Responsive light and dark design, groups, search, and password protection |
+| Website monitoring | Each page is checked on a schedule; the change history shows added text in green and removed text in red. You can limit a watch to one part of a page |
+| Product price tracking | The price is read from schema.org JSON-LD, microdata or a CSS selector, and every change is recorded |
+| Stock availability | Alerts when a product sells out or comes back in stock |
+| Job listing monitoring | The job list of a careers page or job board (CSS selector), filtered to the roles you care about (keywords). New, changed and removed jobs are reported. This uses the same change detector as websites |
+| Historical price analytics | A price/stock chart, lowest / highest / average, "cheaper than N % of recorded prices", and XLSX export |
+| Notifications | **Email** (Gmail, Outlook, … with an app password) and **Telegram** (your own bot), set up on one page with "Save and send test", plus a history of every message sent |
+
+Behind the scenes, and reachable from Home → "Behind the scenes" and Settings → "More tools":
+* scheduling, with per-watch intervals and time windows;
+* concurrent workers with a live queue;
+* plain-HTTP or real-browser page reading (Playwright driving the Microsoft Edge that ships with Windows);
+* the REST API (`/api/v1/*`, API key);
+* a plain-file datastore with backups and import;
+* groups, search, password protection, and dark mode.
+
+Technical options stay hidden behind "Show technical settings" and "Show technical options".
 
 ## Run it (Windows)
 
@@ -43,40 +52,44 @@ contributors, version 0.70.4, used under the Apache License 2.0.
 py -3.12 -m venv C:\Users\<you>\venvs\cdio-simplified
 C:\Users\<you>\venvs\cdio-simplified\Scripts\python.exe -m pip install -r requirements.txt
 
-# optional demo data (run once, while WebPulse is stopped)
-C:\Users\<you>\venvs\cdio-simplified\Scripts\python.exe demo\seed_demo.py C:\Users\<you>\cdio-data\webpulse-demo
-C:\Users\<you>\venvs\cdio-simplified\Scripts\python.exe demo\add_demo_site.py C:\Users\<you>\cdio-data\webpulse-demo
+# optional demonstration data (run once, while WebPulse is stopped)
+C:\Users\<you>\venvs\cdio-simplified\Scripts\python.exe demo\seed_demo.py         C:\Users\<you>\cdio-data\webpulse-demo
+C:\Users\<you>\venvs\cdio-simplified\Scripts\python.exe demo\add_demo_site.py      C:\Users\<you>\cdio-data\webpulse-demo
+C:\Users\<you>\venvs\cdio-simplified\Scripts\python.exe demo\setup_presentation.py C:\Users\<you>\cdio-data\webpulse-demo
 
 # ONE command starts everything: headless Edge, the internal demo site and WebPulse
 .\run.ps1                   # then open http://127.0.0.1:5000  (Ctrl+C stops everything it started)
 .\run.ps1 -NoBrowser -NoDemoSite -Datastore D:\data\webpulse -Port 5001
 ```
 
-Open **http://127.0.0.1:5000**. The Home page has one card per feature, with buttons to try each one.
-Everything binds to `127.0.0.1` only, and SSRF protection stays on.
+Open **http://127.0.0.1:5000**. Everything binds to `127.0.0.1` only, and SSRF protection stays on. For a
+step-by-step walkthrough and the presentation plan, see [docs/PRESENTATION_GUIDE.md](docs/PRESENTATION_GUIDE.md).
 
-### Demonstration data, clearly labelled
+### Real websites and controlled demonstrations
 
 | In the list | What it is |
 |---|---|
-| Normal titles, groups ending in "(live)" | **Real websites**: scraping sandboxes (`books.toscrape.com`, `quotes.toscrape.com`, `webscraper.io/test-sites`), Hacker News and python.org, checked every 6–12 hours |
-| `[Demo] …`, group "Demo site (simulated)" | **Controlled local demo site.** Price, stock and text can be changed on purpose. Reached only through the "WebPulse demo site" proxy, which never forwards |
-| `[Sample data] …`, group "Sample data (simulated)" | **Simulated history** so the charts have data on day one. Paused, and pointing at `example.com` |
+| Normal titles, groups "Indian shops (live)", "Job listings", "… (live)" | **Real websites**, checked every 6–24 hours:<br>• Decathlon India, Sleepy Owl and boAt (INR prices; robots.txt allows product pages);<br>• HackerRank (Greenhouse), Meesho (Lever) and the python.org job board;<br>• the scraping sandboxes `books.toscrape.com`, `quotes.toscrape.com` and `webscraper.io`;<br>• Hacker News and python.org.<br>Every saved version comes from a real check |
+| `[Demo] …` with a **Demo** chip, group "Demo site (simulated)" | **Controlled demonstration.** WebPulse's own small demo site on this computer. The **Controlled demo** page changes its price, stock, jobs or text on demand, and WebPulse then checks it with the same code it uses for real sites. It is reached only through the "WebPulse demo site" proxy, which never forwards |
+
+No history is invented. The earlier "[Sample data]" watches with simulated history were removed in Phase 11.
 
 ## Tests
 
 ```powershell
 .\e2e\run_unit.ps1               # upstream unit tests + template syntax + dependency/import checks
-.\e2e\run_e2e.ps1 -Browser -UI   # 89 end-to-end checks
+.\e2e\run_e2e.ps1 -Browser -UI   # 95 end-to-end checks
 ```
 
-The 89 end-to-end checks are:
+The 95 end-to-end checks are:
 * 40 core and extended API checks;
 * 5 persistence checks;
 * 8 security checks: SSRF, password, CSRF;
 * 8 checks of the JavaScript browser fetcher;
-* 28 interface tests that click through the real UI in Microsoft Edge.
+* 34 interface tests that click through the real UI in Microsoft Edge. These include the Email/Telegram set-up,
+  the notification history, "Track jobs", the Controlled demo, and a check that the demo site never forwards
+  requests.
 
 The harness starts its own local fixture site and throw-away instances. More detail is in
-[docs/SIMPLIFICATION_REPORT.md](docs/SIMPLIFICATION_REPORT.md), and screenshots are in
-[docs/screenshots](docs/screenshots).
+[docs/SIMPLIFICATION_REPORT.md](docs/SIMPLIFICATION_REPORT.md). The presentation walkthrough is in
+[docs/PRESENTATION_GUIDE.md](docs/PRESENTATION_GUIDE.md).
