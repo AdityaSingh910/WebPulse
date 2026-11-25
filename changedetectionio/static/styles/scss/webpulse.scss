@@ -877,3 +877,27 @@ body.wp-public .wp-topbar { display: none; }
   border-radius: var(--wp-radius) !important;
   color: var(--wp-muted) !important;
 }
+
+// ---------- Queue page (was styled for the old dark gradient background - white text) ----------
+#queue-page {
+  --color-white: var(--wp-text);   // the partial paints text with --color-white; on WebPulse cards that must be ink
+  color: var(--wp-text);
+  h3, .queue-stat .value, strong { color: var(--wp-ink) !important; }
+  .queue-stat .label, td.time-cell, small, .queue-waiting { color: var(--wp-muted) !important; }
+  table.pure-table {
+    thead th { color: var(--wp-muted) !important; background: var(--wp-surface-2) !important; border-color: var(--wp-border) !important;
+               font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    td { color: var(--wp-text) !important; border-color: var(--wp-border) !important; }
+  }
+  table.pure-table-striped tr:nth-child(2n-1) td, tr.worker-slot td, tr.worker-idle td { background: transparent !important; }
+  tr.worker-slot td { background: var(--wp-surface-2) !important; }
+  code { color: var(--wp-ink) !important; }
+  .inline-tag { background: var(--wp-surface-2) !important; color: var(--wp-muted) !important; border: 1px solid var(--wp-border); }
+  .inline-tag--running { background: var(--wp-success-soft) !important; color: var(--wp-success) !important; border-color: transparent; }
+  .inline-tag--done { background: var(--wp-primary-soft) !important; color: var(--wp-primary-ink) !important; border-color: transparent; }
+  a.queue-cancel { color: var(--wp-danger) !important; }
+  .spinner { border-color: var(--wp-border) !important; border-left-color: var(--wp-primary) !important; }
+}
+
+// Selects: never clip the text (the shared input padding plus a fixed height cut descenders)
+.pure-form select { height: auto !important; min-height: 36px; padding-top: 6px !important; padding-bottom: 6px !important; line-height: 1.35; }
