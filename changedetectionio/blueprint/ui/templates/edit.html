@@ -74,8 +74,8 @@
                     <div class="pure-control-group">
                         {{ render_field(form.url, placeholder="https://...", required=true, class="m-d") }}
                         {# TRANSLATORS: FIXME: fragment msgids (#4074) #}
-                        <div class="pure-form-message">{{ _('Some sites use JavaScript to create the content, for this you should') }} <a href="https://github.com/dgtlmoon/changedetection.io/wiki/Fetching-pages-with-WebDriver">{{ _('use the Chrome/WebDriver Fetcher') }}</a></div>
-                        <div class="pure-form-message">{{ _('Variables are supported in the URL') }} (<a href="https://github.com/dgtlmoon/changedetection.io/wiki/Handling-variables-in-the-watched-URL">{{ _('help and examples here') }}</a>).</div>
+                        <div class="pure-form-message">{{ _('Some sites use JavaScript to create the content, for this you should') }} {{ _('use the Chrome/Javascript (Playwright) fetcher.') }}</div>
+                        <div class="pure-form-message">{{ _('Variables are supported in the URL') }}.</div>
                     </div>
                     <div class="pure-control-group">
                         {{ render_field(form.tags) }}
@@ -150,7 +150,6 @@
                         <span class="pure-form-message-inline">
                             <p>{{ _('Use the <strong>Basic</strong> method (default) where your watched sites don\'t need Javascript to render.')|safe }}</p>
                             <p>{{ _('The <strong>Chrome/Javascript</strong> method requires a network connection to a running Chrome/Edge browser over CDP (Playwright), set by the PLAYWRIGHT_DRIVER_URL ENV var - on Windows use run.ps1 -Browser.')|safe }}</p>
-                            {{ _('Tip:') }} <a href="https://github.com/dgtlmoon/changedetection.io/wiki/Proxy-configuration#brightdata-proxy-support">{{ _('Connect using Bright Data and Oxylabs Proxies, find out more here.') }}</a>
                         </span>
                     </div>
                 {% if form.proxy %}
@@ -182,8 +181,7 @@
                     <div class="advanced-options"  style="display: none;">
                         {{ render_field(form.webdriver_js_execute_code) }}
                         <div class="pure-form-message-inline">
-                            {{ _('Run this code before performing change detection, handy for filling in fields and other actions') }} <a
-                                href="https://github.com/dgtlmoon/changedetection.io/wiki/Run-JavaScript-before-change-detection">{{ _('More help and examples here') }}</a>
+                            {{ _('Run this code before performing change detection, handy for filling in fields and other actions') }}
                         </div>
                     </div>
                 </fieldset>
@@ -205,7 +203,7 @@
    \"year\":{% now 'Europe/Berlin', '%Y' %}
 }") }}
                         </div>
-                        <div class="pure-form-message">{{ _('Variables are supported in the request body') }} (<a href="https://github.com/dgtlmoon/changedetection.io/wiki/Handling-variables-in-the-watched-URL">{{ _('help and examples here') }}</a>).</div>
+                        <div class="pure-form-message">{{ _('Variables are supported in the request body') }}.</div>
                     </div>
                 </fieldset>
             <!-- hmm -->
@@ -214,12 +212,12 @@
 Cookie: foobar
 User-Agent: wonderbra 1.0
 Math: {{ 1 + 1 }}") }}
-                        <div class="pure-form-message">{{ _('Variables are supported in the request header values') }} (<a href="https://github.com/dgtlmoon/changedetection.io/wiki/Handling-variables-in-the-watched-URL">{{ _('help and examples here') }}</a>).</div>
+                        <div class="pure-form-message">{{ _('Variables are supported in the request header values') }}.</div>
                         <div class="pure-form-message-inline">
                             {% if has_extra_headers_file %}
                                 <strong>{{ _('Alert! Extra headers file found and will be added to this watch!') }}</strong>
                             {% else %}
-                                {{ _('Headers can be also read from a file in your data-directory') }} <a href="https://github.com/dgtlmoon/changedetection.io/wiki/Adding-headers-from-an-external-file">{{ _('Read more here') }}</a>
+                                {{ _('Headers can be also read from a file in your data-directory') }}
                             {% endif %}
                         </div>
                     </div>
@@ -272,7 +270,7 @@ Math: {{ 1 + 1 }}") }}
                                 </div>
                             </div>
                             <div id="browser-steps-fieldlist" >
-                                <span id="browser-seconds-remaining">{{ _('Press "Play" to start.') }}</span> <span style="font-size: 80%;"> (<a target="newwindow" href="https://github.com/dgtlmoon/changedetection.io/pull/478/files#diff-1a79d924d1840c485238e66772391268a89c95b781d69091384cf1ea1ac146c9R4">?</a>) </span>
+                                <span id="browser-seconds-remaining">{{ _('Press "Play" to start.') }}</span> <span style="font-size: 80%;"> (?) </span>
                                 {{ render_field(form.browser_steps) }}
                             </div>
                         </div>
@@ -334,8 +332,6 @@ Math: {{ 1 + 1 }}") }}
                     <div class="pure-form-message-inline">
 
                         <p id="verify-state-text">{{ _('Use the verify (✓) button to test if a condition passes against the current snapshot.') }}</p>
-                       {# TRANSLATORS: FIXME: fragment msgids (#4074) #}
-                       {{ _('Read a quick tutorial about') }} <a href="https://changedetection.io/tutorial/conditional-actions-web-page-changes">{{ _('using conditional web page changes here') }}</a>.<br>
                     </div>
                 </div>
             </div>
@@ -354,7 +350,7 @@ Math: {{ 1 + 1 }}") }}
                                 </li>
                                 <li>
                                     {# TRANSLATORS: FIXME: fragment msgids (#4074) #}
-                                    {{ _('Some sites use JavaScript to create the content, for this you should') }} <a href="https://github.com/dgtlmoon/changedetection.io/wiki/Fetching-pages-with-WebDriver">{{ _('use the Chrome/WebDriver Fetcher') }}</a>
+                                    {{ _('Some sites use JavaScript to create the content, for this you should') }} {{ _('use the Chrome/Javascript (Playwright) fetcher.') }}
                                 </li>
                             </ul>
                     </div>

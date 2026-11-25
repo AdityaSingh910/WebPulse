@@ -311,9 +311,9 @@ class ChangeDetectionStore(DatastoreUpdatesMixin, FileSavingDataStore):
                 extras={'fetch_backend': 'html_requests'}
             )
             self.add_watch(
-                url='https://changedetection.io/CHANGELOG.txt',
-                tag='changedetection.io',
-                extras={'fetch_backend': 'html_requests'}
+                url='https://www.python.org/downloads/',
+                tag='Software releases',
+                extras={'fetch_backend': 'html_requests', 'title': 'Python releases'}
             )
 
         # Create changedetection.json immediately

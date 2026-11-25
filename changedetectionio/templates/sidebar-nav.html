@@ -1,170 +1,64 @@
-{# Shared left-rail / drawer navigation items #}
-{# Used by base.html (desktop left sidebar) and mobile hamburger drawer #}
-
+{# WebPulse sidebar navigation. Rewritten 2026 for the WebPulse redesign (based on changedetection.io, Apache-2.0, see CHANGES.md) #}
 {%- set ep = request.endpoint or '' -%}
+<div class="wp-sidebar-inner">
+    <a class="wp-brand" href="{{ url_for('watchlist.index') }}" title="WebPulse">
+        <img class="wp-brand-mark" src="{{ url_for('static_content', group='images', filename='webpulse-mark.svg') }}" alt="" width="34" height="34">
+        <span class="wp-brand-text"><span class="wp-brand-name">Web<strong>Pulse</strong></span>
+            <span class="wp-brand-tag">{{ _('Monitoring & price analytics') }}</span></span>
+    </a>
 
-<ul class="action-sidebar-list action-sidebar-list--top">
-    <li class="action-sidebar-li" id="action-sidebar-logo">
-
-        {%- if has_password and not current_user.is_authenticated -%}
-          <a id="cdio-logo" href="https://changedetection.io" rel="noopener" title="ChangeDetection.io intelligent web page change detection.">
-              <span id="logo-expanded"><strong>Change</strong>Detection.io</span>
-              <span id="logo-short"><strong>CD</strong>IO</span>
-          </a>
-        {%- else -%}
-          <a id="cdio-logo" href="{{url_for('watchlist.index')}}" title="ChangeDetection.io intelligent web page change detection.">
-              <span id="logo-expanded"><strong>Change</strong>Detection.io</span>
-              <span id="logo-short"><strong>CD</strong>IO</span>
-          </a>
-        {%- endif -%}
-    </li>
-    {# Add-Watch needs a browser that can render a live preview (see the add_watch_ui
-       blueprint's browser_config) - without one the page can only fail, so don't offer it #}
-    {%- if has_visual_browser -%}
-    <li class="action-sidebar-li">
-        {# From inside a group on the watch list, the Add-Watch page starts with that group filled in #}
-        <a href="{{ url_for('add_watch_ui.add_watch_ui_index', tag=active_tag_uuid if ep == 'watchlist.index' else None) }}"
-           class="action-sidebar-item {% if ep.startswith('add_watch_ui.') %}active{% endif %}"
-           title="{{ _('Add a page watch') }}">
-            {# Inverted "add" glyph: a solid (currentColor) rounded square with the
-               plus knocked out to transparency via a mask, so the plus shows the
-               rail behind it rather than a painted colour. #}
-            {%- set _add_mask_id = 'action-add-knockout-' ~ (sidebar_scope | default('nav')) -%}
-            <svg id="add-page-watch-svg" class="action-icon action-icon--filled" viewBox="0 0 24 24" aria-hidden="true">
-                <mask id="{{ _add_mask_id }}">
-                    <rect x="3" y="3" width="18" height="18" rx="4" ry="4" fill="white"/>
-                    <line x1="12" y1="8" x2="12" y2="16" stroke="black" stroke-width="3" stroke-linecap="round"/>
-                    <line x1="8" y1="12" x2="16" y2="12" stroke="black" stroke-width="3" stroke-linecap="round"/>
-                </mask>
-                <rect x="3" y="3" width="18" height="18" rx="4" ry="4" fill="currentColor" stroke="none" mask="url(#{{ _add_mask_id }})"/>
-            </svg>
-            <span class="action-label">{{ _('Add a page watch') }}</span>
-        </a>
-    </li>
-    {%- endif -%}
-    <li class="action-sidebar-li">
+    <nav class="wp-nav">
+        <div class="wp-nav-section">{{ _('Monitor') }}</div>
         <a href="{{ url_for('watchlist.index') }}"
-           class="action-sidebar-item {% if ep == 'watchlist.index' or ep.startswith('ui.ui_views') or ep.startswith('ui.ui_edit') %}active{% endif %}"
-           title="{{ _('Page Watches') }}">
-            <i data-feather="eye" class="action-icon"></i>
-            <span class="action-label">{{ _('Page Watches') }}</span>
-            {# Unread (changed, not-yet-viewed) count. Class hook (not id) because this
-               partial renders twice — desktop rail + mobile drawer. Hidden at 0; shown
-               and kept in sync live by realtime.js (general_stats_update). #}
-            <span class="action-badge action-badge--count js-unread-count"
-                  title="{{ _('Unread changes') }}"
+           class="wp-nav-item {% if ep == 'watchlist.index' or ep.startswith('ui.ui_edit') or ep.startswith('ui.ui_diff') or ep.startswith('ui.ui_preview') %}active{% endif %}">
+            <i data-feather="grid"></i><span>{{ _('Dashboard') }}</span>
+            <span class="wp-nav-badge js-unread-count" title="{{ _('Unread changes') }}"
                   {% if not unread_changes_count %}style="display: none"{% endif %}>{{ unread_changes_count|default(0)|format_int_locale }}</span>
         </a>
-    </li>
-    <li class="action-sidebar-li">
-        <a href="{{ url_for('tags.tags_overview_page') }}"
-           class="action-sidebar-item {% if ep.startswith('tags.') %}active{% endif %}"
-           title="{{ _('Watch Groups') }}">
-            <i data-feather="layers" class="action-icon"></i>
-            <span class="action-label">{{ _('Watch Groups') }}</span>
+        {%- if has_visual_browser %}
+        <a href="{{ url_for('add_watch_ui.add_watch_ui_index', tag=active_tag_uuid if ep == 'watchlist.index' else None) }}"
+           class="wp-nav-item {% if ep.startswith('add_watch_ui.') %}active{% endif %}">
+            <i data-feather="crosshair"></i><span>{{ _('Visual add') }}</span>
         </a>
-    </li>
-    <li class="action-sidebar-li">
-      <a href="{{ url_for('imports.import_page') }}"
-           class="action-sidebar-item {% if ep.startswith('imports.') %}active{% endif %}"
-           title="{{ _('Import lists of web pages') }}">
-            <i data-feather="upload" class="action-icon"></i>
-            <span class="action-label">{{ _('Import') }}</span>
-        </a>
-    </li>
-    <li class="action-sidebar-li">
-        <a href="#"
-           class="action-sidebar-item is-disabled"
-           title="{{ _('Browsers (coming soon)') }}"
-           aria-disabled="true"
-           tabindex="-1">
-            <i data-feather="globe" class="action-icon"></i>
-            <span class="action-label">{{ _('Browsers') }}</span>
-            <span class="action-badge">{{ _('soon') }}</span>
-        </a>
-    </li>
-    {% if not current_diff_url %}
-    <li class="action-sidebar-li">
-        <button type="button"
-                class="action-sidebar-item action-sidebar-item--button js-open-search-modal"
-                title="{{ _('Search, or Use Alt+S Key') }}">
-            <i data-feather="search" class="action-icon"></i>
-            <span class="action-label">{{ _('Search') }}</span>
-        </button>
-    </li>
-    {% endif %}
-    <li class="action-sidebar-li">
-        <a href="{{ url_for('ui.ui_queue.queue_page') }}"
-           class="action-sidebar-item {% if ep.startswith('ui.ui_queue') %}active{% endif %}"
-           title="{{ _('Queue') }}">
-            <i data-feather="list" class="action-icon"></i>
-            <span class="action-label">{{ _('Queue') }}</span>
-            <span class="action-badge action-badge--count  queue-size-int">{{ queue_size }}</span>
-        </a>
-    </li>
-    <li class="action-sidebar-li">
-        <a href="{{ url_for('settings.notifications.apprise') }}"
-           class="action-sidebar-item {% if ep.startswith('settings.notifications') %}active{% endif %}"
-           title="{{ _('Notifications') }}">
-            <i data-feather="bell" class="action-icon"></i>
-            <span class="action-label">{{ _('Notifications') }}</span>
-        </a>
-    </li>
-    {# Links added by plugins and built-in plugins (register_sidebar_items hook) #}
-    {%- for item in plugin_sidebar_items|default([]) %}
-    <!-- blueprint:{{ item.source }} -->
-    <li class="action-sidebar-li">
-        {%- if item.disabled %}
-        <a href="#"
-           class="action-sidebar-item is-disabled"
-           title="{{ item.title }}"
-           aria-disabled="true"
-           tabindex="-1">
-        {%- else %}
-        <a href="{{ item.url }}"
-           class="action-sidebar-item {% if item.active %}active{% endif %}"
-           title="{{ item.title }}">
         {%- endif %}
-            {%- if item.svg %}
-            {{ item.svg }}
-            {%- else %}
-            <i data-feather="{{ item.icon }}" class="action-icon"></i>
-            {%- endif %}
-            <span class="action-label">{{ item.label }}</span>
-            {%- if item.badge %}
-            <span class="action-badge">{{ item.badge }}</span>
-            {%- endif %}
+        <a href="{{ url_for('tags.tags_overview_page') }}" class="wp-nav-item {% if ep.startswith('tags.') %}active{% endif %}">
+            <i data-feather="folder"></i><span>{{ _('Groups') }}</span>
         </a>
-    </li>
-    {%- endfor %}
-</ul>
+        <button type="button" class="wp-nav-item js-open-search-modal" title="{{ _('Search (Alt+S)') }}">
+            <i data-feather="search"></i><span>{{ _('Search') }}</span>
+        </button>
 
-{# Footer group — pushed to the bottom of the rail via `margin-top: auto`
-   (see .action-sidebar-list--bottom). Mirrors the demo's bottom-aligned rail
-   footer (status counters, live spark, version). #}
-<ul class="action-sidebar-list action-sidebar-list--bottom">
-    <li class="action-sidebar-divider" aria-hidden="true"></li>
+        <div class="wp-nav-section">{{ _('Manage') }}</div>
+        <a href="{{ url_for('settings.notifications.apprise') }}" class="wp-nav-item {% if ep.startswith('settings.notifications') or ep == 'settings.notification_logs' %}active{% endif %}">
+            <i data-feather="bell"></i><span>{{ _('Notifications') }}</span>
+        </a>
+        <a href="{{ url_for('imports.import_page') }}" class="wp-nav-item {% if ep.startswith('imports.') %}active{% endif %}">
+            <i data-feather="upload"></i><span>{{ _('Import') }}</span>
+        </a>
+        <a href="{{ url_for('ui.ui_queue.queue_page') }}" class="wp-nav-item {% if ep.startswith('ui.ui_queue') %}active{% endif %}">
+            <i data-feather="list"></i><span>{{ _('Queue') }}</span>
+            <span class="wp-nav-badge wp-nav-badge--muted queue-size-int">{{ queue_size }}</span>
+        </a>
+        <a href="{{ url_for('settings.settings_page') }}" class="wp-nav-item {% if ep == 'settings.settings_page' or ep.startswith('backups') %}active{% endif %}">
+            <i data-feather="settings"></i><span>{{ _('Settings') }}</span>
+        </a>
 
-    <li class="action-sidebar-li" id="checking-now-stats-sidebar">
-        <a href="{{ url_for('ui.ui_queue.queue_page') }}" class="action-sidebar-item">{{ _('Checking now') }}:&nbsp;<span class="checking-now-int">{{ checking_now_size }}</span></a>
-    </li>
-    {% if socket_io_enabled %}
-    <li class="action-sidebar-li action-sidebar-li--spark" aria-hidden="true" id="live-queue-line">
-        <canvas class="queue-spark" title="{{ _('Live activity') }}" ></canvas>
-    </li>
-    {% endif %}
-{% if right_sticky %}
-    <li class="action-sidebar-li" id="extra-item">
-        <div class="action-sidebar-item" >{{ right_sticky }}</div>
-    </li>
-{% endif %}
+        {# Links added by plugins (register_sidebar_items hook) #}
+        {%- for item in plugin_sidebar_items|default([]) if not item.disabled %}
+        <a href="{{ item.url }}" class="wp-nav-item {% if item.active %}active{% endif %}" title="{{ item.title }}">
+            {%- if item.svg %}{{ item.svg }}{%- else %}<i data-feather="{{ item.icon }}"></i>{%- endif %}
+            <span>{{ item.label }}</span>
+            {%- if item.badge %}<span class="wp-nav-badge">{{ item.badge }}</span>{%- endif %}
+        </a>
+        {%- endfor %}
+    </nav>
 
-      {% if new_version_available and not(has_password and not current_user.is_authenticated) %}
-      <li class="action-sidebar-li">
-        <span id="new-version-text" class="action-sidebar-item">
-          <a href="https://changedetection.io">{{ _('A new version is available') }}</a>
-        </span>
-      </li>
-      {% endif %}
-
-</ul>
+    <div class="wp-sidebar-footer">
+        <a class="wp-live" href="{{ url_for('ui.ui_queue.queue_page') }}" title="{{ _('Live check activity') }}">
+            <span class="wp-live-head"><span class="wp-live-dot"></span>{{ _('Checking now') }}
+                <strong class="checking-now-int">{{ checking_now_size }}</strong></span>
+            {% if socket_io_enabled %}<canvas class="queue-spark" aria-hidden="true"></canvas>{% endif %}
+        </a>
+        <a class="wp-about-link" href="{{ url_for('settings.settings_page') }}#about"><i data-feather="info"></i>{{ _('About WebPulse') }}</a>
+    </div>
+</div>

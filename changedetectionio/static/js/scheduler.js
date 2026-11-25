@@ -25,6 +25,8 @@ $(document).ready(function () {
     toggleVisibility('#time_schedule_limit-enabled, #requests-time_schedule_limit-enabled', '#schedule-day-limits-wrapper', true)
 
     setInterval(() => {
+        // WebPulse fix: the time zone field is not on every page that loads this script
+        if (!timezone_text_widget.length) return;
         let success = true;
         try {
             // Show the current local time according to either placeholder or entered TZ name

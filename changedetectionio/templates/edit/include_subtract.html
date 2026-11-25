@@ -1,3 +1,4 @@
+{# Modified 2026 for the simplified (academic) fork of changedetection.io - optional features removed, see CHANGES.md #}
                     <div class="pure-control-group">
                         {% set field = render_field(form.include_filters,
                             rows=5,
@@ -33,8 +34,7 @@ xpath://body/div/span[contains(@class, 'example-class')]",
                             </ul>
                             </li>
                     <li>
-                        Please be sure that you thoroughly understand how to write CSS, JSONPath, XPath{% if jq_support %}, or jq selector{%endif%} rules before filing an issue on GitHub! <a
-                                href="https://github.com/dgtlmoon/changedetection.io/wiki/CSS-Selector-help">{{ _('here for more CSS selector help') }}</a>.<br>
+                        Tip: test your CSS, JSONPath or XPath{% if jq_support %} or jq{%endif%} rule with the preview on the right before saving.<br>
                     </li>
                     </ul>
 

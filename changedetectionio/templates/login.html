@@ -1,8 +1,11 @@
+{# WebPulse sign-in page. Rewritten 2026 for the WebPulse redesign (based on changedetection.io, Apache-2.0, see CHANGES.md) #}
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="login-form">
+<div class="login-form wp-login">
  <div class="inner">
+    <img class="wp-login-logo" src="{{ url_for('static_content', group='images', filename='webpulse-logo.svg') }}" alt="WebPulse" width="236" height="64">
+    <p class="wp-login-lead">{{ _('Automated web monitoring and price analytics') }}</p>
     <form class="pure-form pure-form-stacked" action="{{url_for('login')}}" method="POST">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" id="redirect" name="redirect" value="{{ redirect_url }}">
@@ -11,10 +14,11 @@
                 <label for="password">{{ _('Password') }}</label>
                 <input type="password" id="password" required="" name="password" value=""
                        size="15" autofocus />
+                {# Fixed internal user id expected by the login handler (single-user app) #}
                 <input type="hidden" id="email" name="email" value="defaultuser@changedetection.io" >
             </div>
             <div class="pure-control-group">
-                <button type="submit" class="pure-button pure-button-primary">{{ _('Login') }}</button>
+                <button type="submit" class="pure-button pure-button-primary">{{ _('Sign in') }}</button>
             </div>
         </fieldset>
     </form>

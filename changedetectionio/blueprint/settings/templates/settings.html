@@ -12,7 +12,6 @@
 <script src="{{url_for('static_content', group='js', filename='global-settings.js')}}" defer></script>
 <script src="{{url_for('static_content', group='js', filename='click-to-copy.js')}}" defer></script>
 <script src="{{url_for('static_content', group='js', filename='scheduler.js')}}" defer></script>
-{# PWA related #}
 
 <div class="edit-form">
     {{ settings_tabs(plugin_tabs=plugin_tabs) }}
@@ -25,7 +24,7 @@
                         {{ render_field(form.requests.form.time_between_check, class="time-check-widget") }}
 
                         {# TRANSLATORS: FIXME: fragment msgids (#4074) #}
-                        <span class="pure-form-message-inline">{{ _('Default recheck time for all watches, current system minimum is') }} <i>{{min_system_recheck_seconds}}</i> {{ ngettext('second', 'seconds', min_system_recheck_seconds) }} (<a href="https://github.com/dgtlmoon/changedetection.io/wiki/Misc-system-settings#enviroment-variables">{{ _('more info') }}</a>).</span>
+                        <span class="pure-form-message-inline">{{ _('Default recheck time for all watches, current system minimum is') }} <i>{{min_system_recheck_seconds}}</i> {{ ngettext('second', 'seconds', min_system_recheck_seconds) }}.</span>
                             <div id="time-between-check-schedule">
                                 <!-- Start Time and End Time {{ timezone_default_config }} -->
                                 <div id="limit-between-time">
@@ -54,7 +53,7 @@
                                 {{ render_button(form.application.form.removepassword_button) }}
                             {% else %}
                             {{ render_field(form.application.form.password) }}
-                            <span class="pure-form-message-inline">{{ _('Password protection for your changedetection.io application.') }}</span>
+                            <span class="pure-form-message-inline">{{ _('Protect your WebPulse dashboard with a password.') }}</span>
                             {% endif %}
                         {% else %}
                             <span class="pure-form-message-inline">{{ _('Password is locked.') }}</span>
@@ -120,14 +119,12 @@
                 <div class="pure-control-group inline-radio">
                     {{ render_field(form.requests.form.default_ua) }}
                     <span class="pure-form-message-inline">
-                        {{ _('Applied to all requests.') }}<br><br>
-                        {# TRANSLATORS: FIXME: fragment msgids (#4074) #}
-                        {{ _('Note: Simply changing the User-Agent often does not defeat anti-robot technologies, it\'s important to consider') }} <a href="https://changedetection.io/tutorial/what-are-main-types-anti-robot-mechanisms">{{ _('all of the ways that the browser is detected') }}</a>.
+                        {{ _('Applied to all requests.') }}
                     </span>
                 </div>
                 <div class="pure-control-group">
-                <br>
-                    {{ _('Tip:') }} <a href="{{ url_for('settings.settings_page')}}#proxies">{{ _('Connect using Bright Data proxies, find out more here.') }}</a>
+                    {{ render_checkbox_field(form.application.form.rss_reader_mode) }}
+                    <span class="pure-form-message-inline">{{ _('When watching RSS/Atom feeds, convert them into clean text for better change detection.') }}</span>
                 </div>
             </div>
 
@@ -184,15 +181,23 @@ nav
            </div>
 
             <div class="tab-pane-inner" id="api">
-                <h4>{{ _('API Access') }}</h4>
-                <p>{{ _('Drive your changedetection.io via API, More about') }} <a href="https://changedetection.io/docs/api_v1/index.html">{{ _('API access and examples here') }}</a>.</p>
-
+                <h4>{{ _('REST API access') }}</h4>
+                <p class="pure-form-message-inline">{{ _('Manage watches, read history and differences programmatically at') }} <code>/api/v1/</code>.
+                    {{ _('The full OpenAPI specification is in the project documentation (docs/api-spec.yaml).') }}</p>
                 <div class="pure-control-group">
                     {{ render_checkbox_field(form.application.form.api_access_token_enabled) }}
-                    {# TRANSLATORS: FIXME: fragment msgids (#4074) #}
-                    <div class="pure-form-message-inline">{{ _('Restrict API access limit by using') }} <code>x-api-key</code> {{ _('header - required for the Chrome Extension to work') }}</div><br>
-                    <div class="pure-form-message-inline"><br>{{ _('API Key') }} <code id="api-key" class="click-to-copy" data-copy-label="{{ _('copy') }}" data-copied-label="{{ _('copied') }}">{{api_key}}</code>
+                    <span class="pure-form-message-inline">{{ _('Require the') }} <code>x-api-key</code> {{ _('header on every API request.') }}</span>
+                </div>
+                <div class="pure-control-group">
+                    <label>{{ _('API key') }}</label>
+                    <div class="wp-secret" data-secret="{{ api_key }}">
+                        <code class="wp-secret-value" id="api-key" aria-live="polite"></code>
+                        <button type="button" class="wp-btn wp-btn--ghost wp-btn--sm" data-wp-secret-reveal aria-pressed="false"
+                                data-show-label="{{ _('Reveal') }}" data-hide-label="{{ _('Hide') }}"><i data-feather="eye"></i><span>{{ _('Reveal') }}</span></button>
+                        <button type="button" class="wp-btn wp-btn--ghost wp-btn--sm" data-wp-secret-copy
+                                data-copied-label="{{ _('Copied') }}"><i data-feather="copy"></i><span>{{ _('Copy') }}</span></button>
                     </div>
+                    <span class="pure-form-message-inline">{{ _('Keep this key private. It is hidden by default; reveal it only when needed.') }}</span>
                 </div>
                 <div class="pure-control-group">
                     <a href="{{url_for('settings.settings_reset_api_key')}}" data-method="POST" data-requires-confirm
@@ -200,30 +205,6 @@ nav
                        data-confirm-message="<p>{{ _('Anything using the current API key stops working until it is given the new one.') }}</p>"
                        data-confirm-button="{{ _('Regenerate API key') }}" class="cdio-btn button-small button-cancel">{{ _('Regenerate API key') }}</a>
                 </div>
-                <div class="pure-control-group">
-                    <h4>{{ _('Chrome Extension') }}</h4>
-                    <p>{{ _('Easily add any web-page to your changedetection.io installation from within Chrome.') }}</p>
-                    <strong>{{ _('Step 1') }}</strong> {{ _('Install the extension,') }} <strong>{{ _('Step 2') }}</strong> {{ _('Navigate to this page,') }}
-                    <strong>{{ _('Step 3') }}</strong> {{ _('Open the extension from the toolbar and click') }} "<i>{{ _('Sync API Access') }}</i>"
-                    <p>
-                        <a id="chrome-extension-link"
-                           title="{{ _('Try our new Chrome Extension!') }}"
-                           href="https://chromewebstore.google.com/detail/changedetectionio-website/kefcfmgmlhmankjmnbijimhofdjekbop">
-                            <img alt="{{ _('Chrome store icon') }}" src="{{ url_for('static_content', group='images', filename='google-chrome-icon.png') }}" >
-                            {{ _('Chrome Webstore') }}
-                        </a>
-                    </p>
-                </div>
-
-            </div>
-            <div class="tab-pane-inner" id="rss">
-                <div class="pure-control-group">
-                    {{ render_checkbox_field(form.application.form.rss_reader_mode) }}
-                    <span class="pure-form-message-inline">{{ _('For watching other RSS feeds - When watching RSS/Atom feeds, convert them into clean text for better change detection.') }}</span>
-                </div>
-                <br>
-
-
             </div>
                 <div class="tab-pane-inner" id="timedate">
                 <div class="pure-control-group">
@@ -258,10 +239,6 @@ nav
                     {{ render_checkbox_field(form.application.form.ui.use_page_title_in_list) }}
                 </div>
                 <div class="pure-control-group">
-                    {{ render_checkbox_field(form.application.form.ui.use_share_watch) }}
-                    <span class="pure-form-message-inline">{{ _('This copies your watch to a temporary hosted database and returns a link to make sharing/copying the watch to other people') }}</span>
-                </div>
-                <div class="pure-control-group">
                     {{ render_field(form.application.form.pager_size) }}
                     <span class="pure-form-message-inline">{{ _('Number of items per page in the watch overview list, 0 to disable.') }}</span>
                 </div>
@@ -269,69 +246,14 @@ nav
                     {{ render_field(form.application.form.ui.form.timeago_format) }}
                     <span class="pure-form-message-inline">{{ _('How "Checked" and "Changed" times are shown in the watch overview list.') }}</span>
                 </div>
-                <div class="pure-control-group">
-                    {{ render_field(form.application.form.ui.form.sidebar_mode) }}
-                    <span class="pure-form-message-inline">{{ _('"Collapsed icon rail" keeps the left navigation slim and reveals labels on mouse-over; "Always expanded" keeps labels visible.') }}</span>
-                </div>
 
             </div>
             <div class="tab-pane-inner" id="proxies">
-                <div id="recommended-proxy">
-                    <div>
-                        <img style="height: 2em;" src="{{url_for('static_content', group='images', filename='brightdata.svg')}}" alt="BrightData Proxy Provider">
-                        <p>BrightData offer world-class proxy services, "Data Center" proxies are a very affordable way to proxy your requests, whilst <strong><a href="https://brightdata.grsm.io/n0r16zf7eivq">WebUnlocker</a></strong> can help solve most CAPTCHAs.</p>
-                        <p>
-                            BrightData offer many <a href="https://brightdata.com/proxy-types" target="new">many different types of proxies</a>, it is worth reading about what is best for your use-case.
-                        </p>
-
-                        <p>
-                            When you have <a href="https://brightdata.grsm.io/n0r16zf7eivq">registered</a>, enabled the required services, visit the <A href="https://brightdata.com/cp/api_example?">API example page</A>, then select <strong>Python</strong>, set the country you wish to use, then copy+paste the access Proxy URL into the "Extra Proxies" boxes below.<br>
-                        </p>
-                        <p>
-                            The Proxy URL with BrightData should start with <code>http://brd-customer...</code>
-                        </p>
-                        <p>When you sign up using <a href="https://brightdata.grsm.io/n0r16zf7eivq">https://brightdata.grsm.io/n0r16zf7eivq</a> BrightData will match any first deposit up to $150</p>
-                    </div>
-                    <div>
-                        <img style="height: 2em;"
-                             src="{{url_for('static_content', group='images', filename='oxylabs.svg')}}"
-                             alt="Oxylabs Proxy Provider">
-                        <p>
-                            Collect public data at scale with industry-leading web scraping solutions and the world’s
-                            largest ethical proxy network.
-                        </p>
-                        <p>
-                            Oxylabs also provide a <a href="https://oxylabs.io/products/web-unblocker"><strong>WebUnlocker</strong></a>
-                            proxy that bypasses sophisticated anti-bot systems, so you don’t have to.<br>
-                        </p>
-                        <p>
-                            Serve over <a href="https://oxylabs.io/location-proxy">195 countries</a>, providing <a
-                                href="https://oxylabs.io/products/residential-proxy-pool">Residential</a>, <a
-                                href="https://oxylabs.io/products/mobile-proxies">Mobile</a> and <a
-                                href="https://oxylabs.io/products/rotating-isp-proxies">ISP proxies</a> and much more.
-                        </p>
-                        <p>
-                            Use the promo code <strong>boost35</strong> with this link <a href="https://oxylabs.go2cloud.org/SH2d">https://oxylabs.go2cloud.org/SH2d</a> for 35% off Residential, Mobile proxies, Web Unblocker, and Scraper APIs. Built-in proxies enable you to access data from all around the world and help overcome anti-bot solutions.
-
-                        </p>
-
-                        
-                    </div>
-                </div>
-
-                <p><strong>{{ _('Tip') }}</strong>: {{ _('"Residential" and "Mobile" proxy type can be more successful than "Data Center" for blocked websites.') }}</p>
-
+                <p class="pure-form-message-inline">{{ _('Optionally route checks through your own HTTP or SOCKS5 proxies, then pick a proxy per watch in its Request tab.') }}</p>
                 <div class="pure-control-group" id="extra-proxies-setting">
                 {{ render_fieldlist_with_inline_errors(form.requests.form.extra_proxies) }}
                 <span class="pure-form-message-inline">{{ _('"Name" will be used for selecting the proxy in the Watch Edit settings') }}</span><br>
                 <span class="pure-form-message-inline">{{ _('SOCKS5 proxies with authentication are only supported with \'plain requests\' fetcher, for other fetchers you should whitelist the IP access instead') }}</span>
-                </div>
-                <div class="pure-control-group" id="extra-browsers-setting">
-                    <p>
-                    <span class="pure-form-message-inline"><i>Extra Browsers</i> can be attached to further defeat CAPTCHA's on websites that are particularly hard to scrape.</span><br>
-                    <span class="pure-form-message-inline">Simply paste the connection address into the box, <a href="https://changedetection.io/tutorial/using-bright-datas-scraping-browser-pass-captchas-and-other-protection-when-monitoring">More instructions and examples here</a> </span>
-                    </p>
-                    {{ render_fieldlist_with_inline_errors(form.requests.form.extra_browsers) }}
                 </div>
             </div>
             {% if plugin_tabs %}
@@ -363,22 +285,25 @@ nav
             </div>
                 {% endfor %}
             {% endif %}
-            <div class="tab-pane-inner" id="info">
-                <p><strong>{{ _('Uptime:') }}</strong> {{ uptime_seconds|format_duration }}</p>
-                <p><strong>{{ _('Python version:') }}</strong> {{ python_version }}</p>
-                {% if watch_limit is not none %}
-                <p><strong>{{ _('Maximum number of page watches:') }}</strong> {{ watch_limit }}</p>
-                {% endif %}
-                <p><strong>{{ _('Plugins active:') }}</strong></p>
-                {% if active_plugins %}
-                <ul>
-                    {% for plugin in active_plugins %}
-                    <li><strong>{{ plugin.name }}</strong> - {{ plugin.description }}</li>
-                    {% endfor %}
-                </ul>
-                {% else %}
-                <p>{{ _('No plugins active') }}</p>
-                {% endif %}
+            <div class="tab-pane-inner" id="about">
+                <div class="wp-about">
+                    <img src="{{ url_for('static_content', group='images', filename='webpulse-logo.svg') }}" alt="WebPulse" class="wp-about-logo" width="236" height="64">
+                    <p class="wp-about-lead">{{ _('WebPulse - Automated Web Monitoring and Price Analytics System.') }}</p>
+                    <p>{{ _('A final-year engineering project. WebPulse watches web pages for content changes, tracks product prices and stock, keeps a price history with analytics and charts, checks pages on a schedule with concurrent workers, sends notifications and exposes a REST API.') }}</p>
+                    <h4>{{ _('Open-source attribution') }}</h4>
+                    <p>{{ _('WebPulse is a modified and simplified version of the open-source project') }}
+                        <a href="https://github.com/dgtlmoon/changedetection.io" target="_blank" rel="noopener">changedetection.io</a>
+                        {{ _('by Leigh Morresi and contributors (based on v0.70.4), used under the') }}
+                        <a href="https://www.apache.org/licenses/LICENSE-2.0" target="_blank" rel="noopener">Apache License 2.0</a>.
+                        {{ _('The changes made are listed in CHANGES.md; the original licence and NOTICE files are included with the source code. WebPulse is not affiliated with or endorsed by the changedetection.io project.') }}</p>
+                    <h4>{{ _('System') }}</h4>
+                    <dl class="wp-dl">
+                        <dt>{{ _('Uptime') }}</dt><dd>{{ uptime_seconds|format_duration }}</dd>
+                        <dt>{{ _('Python') }}</dt><dd>{{ python_version }}</dd>
+                        {% if watch_limit is not none %}<dt>{{ _('Watch limit') }}</dt><dd>{{ watch_limit }}</dd>{% endif %}
+                        <dt>{{ _('Plugins') }}</dt><dd>{% if active_plugins %}{% for plugin in active_plugins %}{{ plugin.name }}{% if not loop.last %}, {% endif %}{% endfor %}{% else %}{{ _('Built-in only') }}{% endif %}</dd>
+                    </dl>
+                </div>
             </div>
             <div id="actions">
                 <div class="pure-control-group">

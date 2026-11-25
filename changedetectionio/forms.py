@@ -865,7 +865,7 @@ class commonNotificationSettingsForm(Form):
     notification_urls = StringListField(_l('Notification URL List'),
                                         validators=[validators.Optional(), ValidateAppRiseServers(), ValidateJinja2Template()])
     notification_title = StringField(_l('Notification Title'),
-                                     default='ChangeDetection.io Notification - {{ watch_url }}',
+                                     default='WebPulse - change detected - {{ watch_url }}',
                                      validators=[validators.Optional(), ValidateJinja2Template()])
     notification_body = TextAreaField(_l('Notification Body'),
                                       default='{{ watch_url }} had a change.',
@@ -1116,13 +1116,11 @@ class globalSettingsApplicationUIForm(Form):
     socket_io_enabled = BooleanField(_l('Realtime UI Updates Enabled'), default=True, validators=[validators.Optional()])
     favicons_enabled = BooleanField(_l('Favicons Enabled'), default=True, validators=[validators.Optional()])
     use_page_title_in_list = BooleanField(_l('Use page <title> in watch overview list')) #BooleanField=True
-    use_share_watch = BooleanField(_l('Enable watch "sharing"'))
     timeago_format = SelectField(_l('Relative time format'),
                                  choices=[('long', _l('Long (1 minute ago)')), ('short', _l('Short (1m ago)'))],
                                  default='long', validators=[validators.Optional()])
-    sidebar_mode = SelectField(_l('Navigation sidebar'),
-                               choices=MENU_SIDEBAR_ACTIONMODES,
-                               default=MENU_SIDEBAR_ACTIONMODES_DEFAULT, validators=[validators.Optional()])
+    # WebPulse: the fixed sidebar replaced the three rail modes, and watch "sharing" (an external
+    # upstream service) is no longer offered, so sidebar_mode / use_share_watch are not editable here.
 
 # datastore.data['settings']['application']..
 class globalSettingsApplicationForm(commonSettingsForm):

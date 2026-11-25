@@ -18,7 +18,9 @@ param(
     [int]$FixturePort = 8099,
     [switch]$Browser,              # also run the Playwright/Edge browser checks (B..)
     [int]$BrowserAppPort = 5057,
-    [int]$CdpPort = 9223
+    [int]$CdpPort = 9223,
+    [switch]$UI,                   # also run the browser UI tests (U..) in Microsoft Edge
+    [int]$UiAppPort = 5058
 )
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
@@ -91,8 +93,17 @@ try {
         $summary.ram_mb_browser_instance_app_only = [math]::Round((Get-RamMB $BrowserAppPort), 1)
         Stop-ByCmd "*changedetection.py*-p $BrowserAppPort*"
     }
+
+    # ---- 5. ui (optional): click through the real interface in Microsoft Edge (Playwright) ----
+    if ($UI) {
+        $dsUi = Join-Path $work 'datastore-ui'; New-Item -ItemType Directory -Force $dsUi | Out-Null
+        Start-App $dsUi $UiAppPort @{ ALLOW_IANA_RESTRICTED_ADDRESSES = 'true' } 'ui' | Out-Null
+        & $Python -I (Join-Path $PSScriptRoot 'ui_test.py') $dsUi "http://127.0.0.1:$UiAppPort" $fix $work
+        Stop-ByCmd "*changedetection.py*-p $UiAppPort*"
+    }
 }
 finally {
+    Stop-ByCmd "*changedetection.py*-p $UiAppPort*"
     Stop-ByCmd "*changedetection.py*-p $AppPort*"; Stop-ByCmd "*changedetection.py*-p $SecPort*"
     Stop-Process -Id $fixture.Id -Force -ErrorAction SilentlyContinue; Stop-ByCmd "*fixture_server.py*$FixturePort*"
     Stop-ByCmd "*changedetection.py*-p $BrowserAppPort*"
@@ -100,7 +111,7 @@ finally {
         ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 }
 $tot = 0; $pass = 0
-$modes = @('core', 'persist', 'security'); if ($Browser) { $modes += 'browser' }
+$modes = @('core', 'persist', 'security'); if ($Browser) { $modes += 'browser' }; if ($UI) { $modes += 'ui' }
 foreach ($m in $modes) {
     $f = Join-Path $work "results_$m.json"
     if (Test-Path $f) { $j = Get-Content $f -Raw | ConvertFrom-Json; $summary["$m"] = "$($j.passed)/$($j.total)"; $tot += $j.total; $pass += $j.passed }

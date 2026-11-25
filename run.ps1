@@ -10,7 +10,7 @@
 #     sets it, on a throw-away test instance, so it can reach its 127.0.0.1 fixture site)
 param(
     [int]$Port = 5000,
-    [string]$Datastore = "C:\Users\adity\cdio-data\simplified",
+    [string]$Datastore = "C:\Users\adity\cdio-data\webpulse-demo",
     [string]$Python = "C:\Users\adity\venvs\cdio-simplified\Scripts\python.exe",
     [int]$Workers = 3,
     [switch]$Browser,

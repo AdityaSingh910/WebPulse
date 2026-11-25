@@ -214,7 +214,7 @@ def mode_core():
     # Every remaining UI page must render (catches template errors from removed features)
     pages = ['/tags/list', f'/tags/edit/{tag_uuid}', '/imports/import', '/settings/notifications/',
              '/settings/notification-logs', '/backups/create', '/clear_history', f'/diff/{text_uuid}/extract',
-             '/queue.json', f'/edit/{sched_uuid}', '/login', '/static/flags/1x1/gb.svg']
+             '/queue.json', f'/edit/{sched_uuid}', '/login', '/static/images/webpulse-mark.svg']
     bad = {}
     for p in pages:
         r = s.get(BASE + p, timeout=30, allow_redirects=False)

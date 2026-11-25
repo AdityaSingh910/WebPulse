@@ -36,3 +36,10 @@ The changedetection.io name and logo remain the upstream project's brand assets
 Dependencies added by this fork:
   playwright - Apache-2.0
   pillow     - MIT-CMU (HPND)
+
+WebPulse (2026): the simplified fork was renamed "WebPulse - Automated Web Monitoring
+and Price Analytics System" and its interface was redesigned. The WebPulse name,
+logo, favicons and visual design (branding/make_brand_assets.py,
+static/styles/scss/webpulse.scss) are original work for this project, not derived
+from upstream brand assets. WebPulse is not affiliated with or endorsed by the
+changedetection.io project.

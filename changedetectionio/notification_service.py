@@ -564,7 +564,7 @@ Thanks - Your omniscient changedetection.io installation.
 """
 
         n_object = NotificationContextData({
-            'notification_title': 'Changedetection.io - Alert - CSS/xPath filter was not present in the page',
+            'notification_title': 'WebPulse - Alert - CSS/xPath filter was not present in the page',
             'notification_body': body,
             'notification_format': _check_cascading_vars(self.datastore, 'notification_format', watch),
         })
@@ -614,7 +614,7 @@ Thanks - Your omniscient changedetection.io installation.
 """
 
         n_object = NotificationContextData({
-            'notification_title': f"Changedetection.io - Alert - Browser step at position {step} could not be run",
+            'notification_title': f"WebPulse - Alert - Browser step at position {step} could not be run",
             'notification_body': body,
             'notification_format': _check_cascading_vars(self.datastore, 'notification_format', watch),
         })

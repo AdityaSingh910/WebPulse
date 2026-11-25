@@ -1,0 +1,879 @@
+// =====================================================================================================
+// WebPulse design system (2026 redesign) - loaded LAST in styles.scss so it defines the look.
+// Clean, minimal, light-first: slate neutrals, a single teal brand colour, white cards on a soft page.
+// The upstream component partials still provide behaviour-related layout; this file re-skins them
+// through the shared CSS custom properties plus targeted component rules.
+// =====================================================================================================
+@use "settings" as *;
+
+// ---------- Design tokens ----------
+:root {
+  --wp-font: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Roboto, Arial, sans-serif;
+  --wp-mono: "Cascadia Mono", "Cascadia Code", Consolas, "SF Mono", Menlo, monospace;
+  --wp-bg: #f5f7fa;
+  --wp-surface: #ffffff;
+  --wp-surface-2: #f8fafc;
+  --wp-border: #e3e8ef;
+  --wp-border-strong: #cbd5e1;
+  --wp-ink: #0f172a;
+  --wp-text: #1e293b;
+  --wp-muted: #64748b;
+  --wp-subtle: #94a3b8;
+  --wp-primary: #0d9488;
+  --wp-primary-hover: #0f766e;
+  --wp-primary-soft: #e6f6f4;
+  --wp-primary-ink: #0f5f58;
+  --wp-accent: #d97706;
+  --wp-accent-soft: #fef3c7;
+  --wp-danger: #dc2626;
+  --wp-danger-soft: #fdecec;
+  --wp-success: #16a34a;
+  --wp-success-soft: #e8f6ee;
+  --wp-radius: 10px;
+  --wp-radius-lg: 14px;
+  --wp-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.06);
+  --wp-shadow-lg: 0 10px 30px rgba(15, 23, 42, 0.10);
+  --wp-sidebar-w: 248px;
+  --wp-topbar-h: 60px;
+
+  // Map the upstream tokens onto the WebPulse palette
+  --color-background-page: var(--wp-bg);
+  --color-background-gradient-first: var(--wp-bg);
+  --color-background-gradient-second: var(--wp-bg);
+  --color-background-gradient-third: var(--wp-bg);
+  --page-background-gradient: var(--wp-bg);
+  --color-background: var(--wp-surface);
+  --color-text: var(--wp-text);
+  --color-link: var(--wp-primary);
+  --color-menu-accent: var(--wp-primary);
+  --color-api-key: var(--wp-primary);
+  --color-background-button-primary: var(--wp-primary);
+  --color-background-button-secondary: var(--wp-surface);
+  --color-background-button-cancel: #e2e8f0;
+  --color-background-button-error: var(--wp-danger);
+  --color-background-button-tag: #e2e8f0;
+  --color-background-button-tag-active: var(--wp-primary);
+  --color-text-tab: var(--wp-muted);
+  --color-background-tab: transparent;
+  --color-background-tab-hover: var(--wp-surface-2);
+  --color-text-tab-active: var(--wp-primary-ink);
+  --color-text-messages: var(--wp-text);
+  --color-text-legend: var(--wp-text);
+  --color-background-checkbox-operations: var(--wp-surface);
+  --color-background-new-watch-form: var(--wp-surface);
+  --color-background-new-watch-input: var(--wp-surface);
+  --color-background-new-watch-input-transparent: var(--wp-surface);
+  --color-border-input: var(--wp-border-strong);
+  --color-shadow-input: transparent;
+  --color-background-input: var(--wp-surface);
+  --color-text-input-description: var(--wp-muted);
+  --color-background-table-thead: var(--wp-surface-2);
+  --color-border-table-cell: var(--wp-border);
+  --color-border-watch-table-cell: var(--wp-border);
+  --color-table-line: var(--wp-border);
+  --color-table-stripe: var(--wp-surface-2);
+  --color-watch-table-row-text: var(--wp-text);
+  --watchlist-row-hover: #f8fafc;
+  --watchlist-row-selected: var(--wp-primary-soft);
+  --color-last-checked: var(--wp-muted);
+  --color-text-footer: var(--wp-muted);
+  --color-text-menu-heading: var(--wp-text);
+  --common-round-border: var(--wp-radius);
+}
+
+@include dark-mode {
+  --wp-bg: #0b1220;
+  --wp-surface: #111a2c;
+  --wp-surface-2: #0f1727;
+  --wp-border: #1f2b40;
+  --wp-border-strong: #2c3a52;
+  --wp-ink: #f1f5f9;
+  --wp-text: #e2e8f0;
+  --wp-muted: #94a3b8;
+  --wp-subtle: #64748b;
+  --wp-primary: #2dd4bf;
+  --wp-primary-hover: #5eead4;
+  --wp-primary-soft: rgba(45, 212, 191, 0.12);
+  --wp-primary-ink: #5eead4;
+  --wp-accent: #fbbf24;
+  --wp-accent-soft: rgba(251, 191, 36, 0.14);
+  --wp-danger: #f87171;
+  --wp-danger-soft: rgba(248, 113, 113, 0.14);
+  --wp-success: #4ade80;
+  --wp-success-soft: rgba(74, 222, 128, 0.12);
+  --wp-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --wp-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.45);
+
+  --color-background-page: var(--wp-bg);
+  --color-background-gradient-first: var(--wp-bg);
+  --color-background-gradient-second: var(--wp-bg);
+  --color-background-gradient-third: var(--wp-bg);
+  --color-background: var(--wp-surface);
+  --color-text: var(--wp-text);
+  --color-link: var(--wp-primary);
+  --color-background-button-primary: #0d9488;
+  --color-background-button-secondary: var(--wp-surface-2);
+  --color-background-button-cancel: #1f2b40;
+  --color-background-button-tag: #1f2b40;
+  --color-background-input: var(--wp-surface-2);
+  --color-background-new-watch-input: var(--wp-surface-2);
+  --color-background-new-watch-input-transparent: var(--wp-surface-2);
+  --color-background-table-thead: var(--wp-surface-2);
+  --color-table-stripe: var(--wp-surface-2);
+  --watchlist-row-hover: #142036;
+  --color-background-checkbox-operations: var(--wp-surface);
+  --color-background-new-watch-form: var(--wp-surface);
+  --color-text-tab: var(--wp-muted);
+  --color-text-tab-active: var(--wp-primary-ink);
+  --color-watch-table-row-text: var(--wp-text);
+}
+
+// ---------- Base ----------
+html, body {
+  background: var(--wp-bg);
+}
+
+body.wp {
+  font-family: var(--wp-font);
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--wp-text);
+  -webkit-font-smoothing: antialiased;
+
+  &::before, &::after { display: none !important; }   // the old full-page gradient layers
+}
+
+h1, h2, h3, h4 { color: var(--wp-ink); letter-spacing: -0.01em; }
+h4 { font-size: 1rem; margin: 1.4em 0 0.5em; }
+code, pre { font-family: var(--wp-mono); }
+code {
+  background: var(--wp-surface-2);
+  border: 1px solid var(--wp-border);
+  border-radius: 6px;
+  padding: 0.1em 0.4em;
+  font-size: 0.88em;
+  color: var(--wp-ink);
+}
+a { color: var(--wp-primary); }
+a:hover { color: var(--wp-primary-hover); }
+::selection { background: var(--wp-primary-soft); }
+svg.feather { width: 18px; height: 18px; stroke-width: 2; vertical-align: -3px; }
+
+// ---------- App shell ----------
+.wp-app {
+  display: flex;
+  min-height: 100vh;
+}
+
+.wp-sidebar {
+  position: sticky;
+  top: 0;
+  flex: 0 0 var(--wp-sidebar-w);
+  width: var(--wp-sidebar-w);
+  height: 100vh;
+  background: var(--wp-surface);
+  border-right: 1px solid var(--wp-border);
+  z-index: 40;
+}
+
+.wp-sidebar-inner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 18px 14px 14px;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+.wp-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px 18px;
+  color: var(--wp-ink);
+  &:hover { color: var(--wp-ink); }
+
+  .wp-brand-mark { flex: 0 0 auto; border-radius: 9px; }
+  .wp-brand-text { display: flex; flex-direction: column; line-height: 1.15; }
+  .wp-brand-name { font-size: 1.22rem; font-weight: 600; letter-spacing: -0.02em; strong { color: var(--wp-primary); font-weight: 800; } }
+  .wp-brand-tag { font-size: 0.72rem; color: var(--wp-muted); margin-top: 2px; }
+}
+
+.wp-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.wp-nav-section {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--wp-subtle);
+  padding: 14px 10px 6px;
+}
+
+.wp-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--wp-muted);
+  font: inherit;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: background 0.15s, color 0.15s;
+
+  svg.feather { flex: 0 0 auto; }
+  > span:not(.wp-nav-badge) { flex: 1 1 auto; }
+
+  &:hover { background: var(--wp-surface-2); color: var(--wp-ink); }
+  &.active {
+    background: var(--wp-primary-soft);
+    color: var(--wp-primary-ink);
+    font-weight: 600;
+  }
+}
+
+.wp-nav-badge {
+  min-width: 20px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--wp-primary);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-align: center;
+  &.wp-nav-badge--muted { background: var(--wp-surface-2); color: var(--wp-muted); border: 1px solid var(--wp-border); }
+}
+
+.wp-sidebar-footer {
+  margin-top: auto;
+  padding-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wp-live {
+  display: block;
+  padding: 10px 12px;
+  border: 1px solid var(--wp-border);
+  border-radius: var(--wp-radius);
+  background: var(--wp-surface-2);
+  color: var(--wp-muted);
+  font-size: 0.8rem;
+
+  &:hover { color: var(--wp-text); border-color: var(--wp-border-strong); }
+  .wp-live-head { display: flex; align-items: center; gap: 8px; }
+  .wp-live-head strong { margin-left: auto; color: var(--wp-ink); }
+  canvas.queue-spark { display: block; width: 100%; height: 28px; margin-top: 6px; }
+}
+
+.wp-live-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--wp-success);
+  box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.5);
+  animation: wp-pulse 2.2s infinite;
+}
+
+@keyframes wp-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.45); }
+  70% { box-shadow: 0 0 0 7px rgba(22, 163, 74, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
+}
+
+.wp-about-link {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px;
+  font-size: 0.8rem;
+  color: var(--wp-muted);
+  svg.feather { width: 15px; height: 15px; }
+  &:hover { color: var(--wp-primary); }
+}
+
+.wp-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.wp-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: var(--wp-topbar-h);
+  padding: 0 28px;
+  background: color-mix(in srgb, var(--wp-surface) 88%, transparent);
+  backdrop-filter: saturate(160%) blur(8px);
+  border-bottom: 1px solid var(--wp-border);
+}
+
+.wp-topbar-title {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
+  flex: 1 1 auto;
+
+  h1 { margin: 0; font-size: 1.15rem; font-weight: 650; white-space: nowrap; }
+
+  .current-diff-url {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--wp-muted);
+    font-size: 0.9rem;
+    span { overflow: hidden; text-overflow: ellipsis; }
+    &:hover { color: var(--wp-primary); }
+  }
+}
+
+.wp-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  li { display: flex; }
+  form { margin: 0; display: flex; }
+}
+
+.wp-nav-toggle { display: none; }
+.wp-scrim { display: none; }
+
+.wp-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--wp-border);
+  border-radius: 9px;
+  background: var(--wp-surface);
+  color: var(--wp-muted);
+  cursor: pointer;
+  &:hover { color: var(--wp-ink); border-color: var(--wp-border-strong); }
+  svg.feather { width: 17px; height: 17px; }
+}
+
+// light/dark icon swap
+.toggle-light-mode {
+  .icon-dark { display: none; }
+  .icon-light { display: inline-flex; }
+}
+@include dark-mode {
+  .toggle-light-mode .icon-dark { display: inline-flex; }
+  .toggle-light-mode .icon-light { display: none; }
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--wp-border);
+  border-radius: 999px;
+  background: var(--wp-surface);
+  color: var(--wp-text);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  &:hover { border-color: var(--wp-border-strong); }
+  svg.feather { width: 15px; height: 15px; }
+
+  .live-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--wp-success);
+    animation: wp-pulse 2.2s infinite;
+  }
+  &.paused { background: var(--wp-accent-soft); border-color: transparent; color: var(--wp-accent);
+    .live-dot { background: var(--wp-accent); animation: none; } }
+  &.muted { background: var(--wp-surface-2); color: var(--wp-muted); }
+}
+
+.wp-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  background: var(--wp-primary);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.88rem;
+  cursor: pointer;
+  text-decoration: none;
+  &:hover { background: var(--wp-primary-hover); color: #fff; }
+  svg.feather { width: 16px; height: 16px; }
+
+  &.wp-btn--ghost {
+    background: var(--wp-surface);
+    border-color: var(--wp-border);
+    color: var(--wp-text);
+    &:hover { border-color: var(--wp-border-strong); color: var(--wp-ink); background: var(--wp-surface-2); }
+  }
+  &.wp-btn--sm { height: 30px; padding: 0 10px; font-size: 0.8rem; }
+}
+
+// ---------- Content area ----------
+section.content {
+  padding: 24px 28px 48px;
+  box-sizing: border-box;
+}
+
+.content-wrapper { justify-content: center; }
+
+.content-main {
+  max-width: 1320px;
+  margin: 0 auto;
+  align-items: stretch !important;
+  gap: 16px;
+}
+
+.wp-page-header h2 { margin: 0 0 8px; font-size: 1.2rem; }
+
+// Cards: every main panel looks the same
+.box,
+.edit-form .box-wrap,
+.edit-form > .inner,
+#watch-table-wrapper,
+.login-form .inner,
+.wp-card {
+  background: var(--wp-surface);
+  border: 1px solid var(--wp-border);
+  border-radius: var(--wp-radius-lg);
+  box-shadow: var(--wp-shadow);
+}
+
+.edit-form {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  .box-wrap, > .inner { padding: 22px 26px; box-sizing: border-box; }
+}
+
+// ---------- Messages / flash ----------
+ul.messages {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  li {
+    display: block;
+    margin: 0 0 8px;
+    padding: 10px 14px;
+    border-radius: var(--wp-radius);
+    border: 1px solid var(--wp-border);
+    border-left: 4px solid var(--wp-primary);
+    background: var(--wp-surface);
+    color: var(--wp-text);
+    font-size: 0.9rem;
+    box-shadow: var(--wp-shadow);
+    &.error { border-left-color: var(--wp-danger); background: var(--wp-danger-soft); }
+    &.notice { border-left-color: var(--wp-accent); }
+  }
+}
+
+// ---------- Buttons ----------
+.pure-button,
+.cdio-btn,
+a.pure-button,
+button.pure-button {
+  border-radius: 8px !important;
+  font-family: var(--wp-font);
+  font-weight: 600;
+  font-size: 0.86rem;
+  line-height: 1.2;
+  padding: 0.55em 1.05em;
+  border: 1px solid var(--wp-border);
+  background: var(--wp-surface);
+  color: var(--wp-text);
+  box-shadow: none;
+  text-shadow: none;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  &:hover { background-image: none; border-color: var(--wp-border-strong); background-color: var(--wp-surface-2); color: var(--wp-ink); }
+}
+
+.pure-button-primary,
+a.pure-button-primary,
+.pure-button-selected,
+.cdio-btn--primary,
+.button-success {
+  background: var(--wp-primary) !important;
+  border-color: var(--wp-primary) !important;
+  color: #fff !important;
+  &:hover { background: var(--wp-primary-hover) !important; color: #fff !important; }
+}
+
+.button-error, .button-warning, .button-red {
+  background: var(--wp-danger) !important;
+  border-color: var(--wp-danger) !important;
+  color: #fff !important;
+  &:hover { filter: brightness(0.95); color: #fff !important; }
+}
+
+.button-secondary, .button-cancel {
+  background: var(--wp-surface) !important;
+  border: 1px solid var(--wp-border) !important;
+  color: var(--wp-text) !important;
+  &:hover { border-color: var(--wp-border-strong) !important; background: var(--wp-surface-2) !important; }
+}
+
+.button-small, .button-xsmall, .cdio-btn--sm { font-size: 0.78rem !important; padding: 0.4em 0.8em !important; }
+
+// ---------- Forms ----------
+.pure-form {
+  input[type=text], input[type=password], input[type=email], input[type=url], input[type=number],
+  input[type=search], input[type=time], input[type=date], input:not([type]), select, textarea {
+    border: 1px solid var(--wp-border-strong) !important;
+    border-radius: 8px !important;
+    background: var(--color-background-input) !important;
+    color: var(--wp-text) !important;
+    box-shadow: none !important;
+    font-family: var(--wp-font);
+    padding: 0.5em 0.7em;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    &:focus {
+      outline: none;
+      border-color: var(--wp-primary) !important;
+      box-shadow: 0 0 0 3px var(--wp-primary-soft) !important;
+    }
+  }
+  textarea { font-family: var(--wp-mono); font-size: 0.86rem; }
+  label { color: var(--wp-ink); font-weight: 600; font-size: 0.9rem; }
+  legend { color: var(--wp-ink); border-bottom-color: var(--wp-border); }
+  .pure-form-message-inline, .pure-form-message { color: var(--wp-muted); font-size: 0.82rem; }
+  .pure-control-group { margin-bottom: 14px; }
+}
+
+input[type=checkbox], input[type=radio] { accent-color: var(--wp-primary); }
+
+// ---------- Tabs ----------
+.tabs {
+  width: 100%;
+  margin-bottom: -1px;
+  ul {
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 2px;
+    padding: 0 6px !important;
+    margin: 0;
+    border-bottom: 1px solid var(--wp-border);
+    background: transparent !important;
+  }
+  li, li.tab {
+    background: transparent !important;
+    border: 0 !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    a {
+      display: block;
+      padding: 10px 14px !important;
+      color: var(--wp-muted) !important;
+      font-weight: 600;
+      font-size: 0.88rem;
+      border-bottom: 2px solid transparent;
+      background: transparent !important;
+      &:hover { color: var(--wp-ink) !important; }
+    }
+    &.active a, &.active > a, a.active {
+      color: var(--wp-primary-ink) !important;
+      border-bottom-color: var(--wp-primary);
+    }
+  }
+}
+.edit-form .tabs + .box-wrap, .edit-form .tabs + .inner { border-top-left-radius: 0; border-top-right-radius: 0; }
+
+// ---------- Watch list (dashboard) ----------
+#new-watch-form {
+  width: 100% !important;
+  max-width: none !important;
+  box-sizing: border-box;
+  padding: 16px 20px !important;
+  background: var(--wp-surface) !important;
+  border: 1px solid var(--wp-border) !important;
+  border-radius: var(--wp-radius-lg) !important;
+  box-shadow: var(--wp-shadow);
+  label strong { color: var(--wp-ink); }
+}
+#add-watch-ui.box { width: 100%; background: transparent; border: 0; box-shadow: none; padding: 0; }
+
+#watch-table-wrapper {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0;
+  overflow: hidden;
+}
+
+.watch-table {
+  border: 0 !important;
+  width: 100%;
+  thead th {
+    background: var(--wp-surface-2) !important;
+    color: var(--wp-muted) !important;
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--wp-border) !important;
+    a { color: var(--wp-muted); }
+  }
+  tbody tr { border-bottom: 1px solid var(--wp-border); }
+  tbody tr:hover { background: var(--watchlist-row-hover); }
+  td { border-color: var(--wp-border) !important; color: var(--wp-text); }
+  tr.unviewed td.title-col a.external, tr.unviewed .title-col { font-weight: 650; }
+}
+
+// Tag / group filter chips
+#tag-lister, .tag-lister {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  a, .button-tag {
+    border-radius: 999px !important;
+    padding: 4px 12px !important;
+    font-size: 0.8rem !important;
+    font-weight: 600;
+    background: var(--wp-surface) !important;
+    border: 1px solid var(--wp-border) !important;
+    color: var(--wp-muted) !important;
+    &.active, &.pure-button-primary { background: var(--wp-primary-soft) !important; border-color: transparent !important; color: var(--wp-primary-ink) !important; }
+  }
+}
+
+.watch-tag-list {
+  border-radius: 999px !important;
+  padding: 1px 9px !important;
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+// Segmented status filters (All / Unread / Errors ...)
+.seg {
+  border-radius: 9px !important;
+  border: 1px solid var(--wp-border) !important;
+  background: var(--wp-surface) !important;
+}
+
+#checkbox-operations {
+  border-radius: var(--wp-radius) !important;
+  border: 1px solid var(--wp-border);
+  box-shadow: var(--wp-shadow-lg);
+}
+
+// ---------- Modals ----------
+dialog.modal-dialog {
+  border: 1px solid var(--wp-border) !important;
+  border-radius: var(--wp-radius-lg) !important;
+  background: var(--wp-surface) !important;
+  color: var(--wp-text);
+  box-shadow: var(--wp-shadow-lg) !important;
+  .modal-title { color: var(--wp-ink); font-size: 1.1rem; }
+  &::backdrop { background: rgba(15, 23, 42, 0.45); }
+}
+
+// ---------- Sign in ----------
+body.wp-public .wp-topbar { display: none; }
+.wp-login {
+  display: flex;
+  justify-content: center;
+  padding-top: 16vh;
+  width: 100%;
+  .inner { width: 360px; max-width: 100%; padding: 30px 30px 18px !important; box-sizing: border-box; text-align: center; }
+  .wp-login-logo { height: 46px; width: auto; }
+  .wp-login-lead { color: var(--wp-muted); margin: 6px 0 20px; font-size: 0.9rem; }
+  form { text-align: left; }
+  input[type=password] { width: 100%; }
+  button { width: 100%; justify-content: center; }
+}
+
+// ---------- Settings: masked secret + About ----------
+.wp-secret {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  .wp-secret-value {
+    min-width: 260px;
+    padding: 7px 12px;
+    letter-spacing: 0.04em;
+    font-size: 0.9rem;
+  }
+  &:not(.is-revealed) .wp-secret-value { color: var(--wp-muted); letter-spacing: 0.12em; }
+  .is-copied { border-color: var(--wp-success) !important; color: var(--wp-success) !important; }
+}
+
+.wp-about {
+  max-width: 760px;
+  .wp-about-logo { height: 48px; width: auto; margin: 4px 0 8px; }
+  .wp-about-lead { font-size: 1.05rem; font-weight: 600; color: var(--wp-ink); }
+  p { color: var(--wp-text); }
+}
+.wp-dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 18px;
+  dt { color: var(--wp-muted); }
+  dd { margin: 0; color: var(--wp-ink); }
+}
+
+// ---------- Misc ----------
+#checking-now-fixed-tab {
+  background: var(--wp-primary) !important;
+  color: #fff !important;
+  border-radius: 999px 0 0 999px !important;
+}
+
+#pure-menu-horizontal-spinner { display: none; }
+
+// ---------- Responsive ----------
+@media only screen and (max-width: $desktop-wide-breakpoint) {
+  .wp-sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    box-shadow: var(--wp-shadow-lg);
+  }
+  body.wp-nav-open .wp-sidebar { transform: none; }
+  body.wp-nav-open .wp-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.4);
+    z-index: 35;
+  }
+  .wp-nav-toggle { display: inline-flex; }
+  .wp-topbar { padding: 0 14px; gap: 10px; }
+  .wp-topbar-title .current-diff-url { display: none; }
+  .wp-topbar-actions .status-pill { padding: 0 9px; }
+  #menu-mute { display: none !important; }
+  section.content { padding: 16px 12px 40px; }
+  .edit-form .box-wrap, .edit-form > .inner { padding: 16px; }
+}
+
+// ---------- Fixes after first visual review ----------
+.wp-icon-btn.wp-nav-toggle { display: none; }
+@media only screen and (max-width: $desktop-wide-breakpoint) {
+  .wp-icon-btn.wp-nav-toggle { display: inline-flex; }
+}
+
+// .box is a layout wrapper only; the cards are the specific panels inside it
+.box { background: transparent; border: 0; box-shadow: none; padding: 0; width: 100%; }
+
+// Dashboard: list header (chips + filters) sits on the page, the table is the card
+#watch-table-wrapper { margin-top: 4px; }
+#stats_row, #list-related-buttons { padding: 4px 0; }
+
+// Row actions always visible (quiet outline buttons, teal on hover)
+.watch-table td.buttons > div > * { opacity: 1 !important; }
+.watch-table td.buttons {
+  a.cdio-btn, button.cdio-btn, .cdio-btn--primary {
+    background: var(--wp-surface) !important;
+    border: 1px solid var(--wp-border) !important;
+    color: var(--wp-text) !important;
+    font-weight: 600;
+    &:hover { background: var(--wp-primary) !important; border-color: var(--wp-primary) !important; color: #fff !important; }
+  }
+}
+
+// Processor badges: neutral for page-text watches, amber for price/stock watches
+.processor-badge {
+  background: var(--wp-surface-2) !important;
+  color: var(--wp-muted) !important;
+  border: 1px solid var(--wp-border);
+  border-radius: 999px !important;
+  padding: 1px 9px !important;
+  font-size: 0.72rem !important;
+  font-weight: 700 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.processor-badge-restock_diff {
+  background: var(--wp-accent-soft) !important;
+  color: var(--wp-accent) !important;
+  border-color: transparent;
+}
+
+// ---------- Fixes after second visual review ----------
+:root { --color-table-background: var(--wp-surface); --wp-btn: #0d9488; --wp-btn-hover: #0f766e; }
+@include dark-mode { --color-table-background: var(--wp-surface); --wp-btn: #0d9488; --wp-btn-hover: #14b8a6; }
+
+// Primary actions use a fixed-contrast teal in both themes (white text stays readable)
+.pure-button-primary, a.pure-button-primary, .pure-button-selected, .cdio-btn--primary, .button-success, .wp-btn:not(.wp-btn--ghost) {
+  background: var(--wp-btn) !important;
+  border-color: var(--wp-btn) !important;
+  &:hover { background: var(--wp-btn-hover) !important; border-color: var(--wp-btn-hover) !important; }
+}
+
+.watch-table {
+  tbody tr, tbody td { background-color: var(--wp-surface); }
+  tbody tr:hover td { background-color: var(--watchlist-row-hover); }
+  td.title-col, td.title-col a { word-break: normal !important; overflow-wrap: break-word; hyphens: none; }
+  // no favicon known yet -> don't show an empty placeholder circle
+  tr:not(.has-favicon) img.favicon { display: none !important; }
+}
+
+// Stock / price badges (dashboard + history page)
+.restock-label, .restock-badge {
+  border-radius: 999px !important;
+  padding: 2px 9px !important;
+  font-size: 0.76rem !important;
+  font-weight: 700 !important;
+  border: 0 !important;
+  &.in-stock { background: var(--wp-success-soft) !important; color: var(--wp-success) !important; }
+  &.not-in-stock, &.out-of-stock { background: var(--wp-danger-soft) !important; color: var(--wp-danger) !important; }
+  &.price { background: var(--wp-surface-2) !important; color: var(--wp-ink) !important; border: 1px solid var(--wp-border) !important; }
+}
+.restock-latest-price { color: var(--wp-ink) !important; font-weight: 700; font-size: 1.4rem; }
+#restock-diff-summary { display: flex; align-items: center; gap: 12px; }
+
+// History page: version selects must not be clipped by the shared input padding
+#diff-form select { height: auto !important; min-height: 34px; padding-top: 4px !important; padding-bottom: 4px !important; line-height: 1.4; }
+#diff-form { background: var(--wp-surface) !important; border: 1px solid var(--wp-border); border-radius: var(--wp-radius-lg) !important; box-shadow: var(--wp-shadow); }
+
+// Dashboard spacing between the quick-add card and the list
+#add-watch-ui { margin-bottom: 0 !important; }
+.content-main > .box + .box { margin-top: -4px; }
+
+@media only screen and (max-width: $desktop-wide-breakpoint) {
+  #add-watch-url-row { flex-wrap: wrap; gap: 8px; }
+  #add-watch-url-row > label { flex: 1 0 100%; }
+  #add-watch-url-row input[type=text] { flex: 1 1 auto; min-width: 0; }
+  #new-watch-form { padding: 12px !important; }
+}
+
+// ---------- Fixes after third visual review ----------
+// Visual add page: the group field was styled "transparent" for the old gradient page
+#add-watch-ui .transparent-field, #watch-group-tag input {
+  background: var(--color-background-input) !important;
+  border: 1px solid var(--wp-border-strong) !important;
+  border-radius: 8px !important;
+  color: var(--wp-text) !important;
+  padding: 0.45em 0.7em !important;
+}
+#selector-wrapper, .add-watch-preview, #add-watch-live-info {
+  background: var(--wp-surface-2) !important;
+  border: 1px dashed var(--wp-border-strong) !important;
+  border-radius: var(--wp-radius) !important;
+  color: var(--wp-muted) !important;
+}

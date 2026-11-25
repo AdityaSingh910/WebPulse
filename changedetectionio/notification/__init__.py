@@ -8,7 +8,7 @@ GROUP_NOTIFICATION_MODE_REPLACE = 'replace'    # Sent on its own, instead of the
 
 default_notification_format = 'htmlcolor'
 default_notification_body = '{{watch_url}} had a change.\n---\n{{diff}}\n---\n'
-default_notification_title = 'ChangeDetection.io Notification - {{watch_url}}'
+default_notification_title = 'WebPulse - change detected - {{watch_url}}'
 
 # The values (markdown etc) are from apprise NotifyFormat,
 # But to avoid importing the whole heavy module just use the same strings here.

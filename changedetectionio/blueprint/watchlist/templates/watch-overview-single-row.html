@@ -17,7 +17,6 @@
                 {%- set open_link = watch.open_link -%}
                 {%- set error_texts = watch.compile_error_texts(has_proxies=has_proxies) -%}
                 {%- set system_use_url_watchlist = datastore.data['settings']['application']['ui'].get('use_page_title_in_list')  -%}
-                {%- set system_use_share = datastore.data['settings']['application']['ui'].get('use_share_watch')  -%}
                 {#  Class settings mirrored in changedetectionio/static/js/realtime.js for the frontend #}
 {#                    loop.cycle('pure-table-odd', 'pure-table-even'),#}
                 {%- set row_classes = [
@@ -99,7 +98,7 @@
 
                         </div>
                     <div class="status-icons">
-{%- if system_use_share -%}  <button type="submit" formmethod="post" formaction="{{url_for('ui.form_share_put_watch', uuid=watch.uuid)}}" class="bare-btn link-spread"><img src="{{url_for('static_content', group='images', filename='spread.svg')}}" class="status-icon icon icon-spread" title="{{ _('Create a link to share watch config with others') }}" ></button>{%-  endif -%}
+
                             {%- set effective_fetcher = watch.get_fetch_backend if watch.get_fetch_backend != "system" else system_default_fetcher -%}
                             {%- if effective_fetcher and ("html_webdriver" in effective_fetcher or "html_" in effective_fetcher or "extra_browser_" in effective_fetcher) -%}
                                 {{ effective_fetcher|fetcher_status_icons }}
@@ -120,7 +119,7 @@
                             {%- if watch.has_restock_info -%}
                                 <span class="restock-label {{'in-stock' if watch['restock']['in_stock'] else 'not-in-stock' }}" title="{{ _('Detecting restock and price') }}">
                                     <!-- maybe some object watch['processor'][restock_diff] or.. -->
-                                     {%- if watch['restock']['in_stock']-%}  {{ _('In stock') }} {%- else-%}  {{ _('Not in stock') }} {%- endif -%}
+                                     {%- if watch['restock']['in_stock']-%}  {{ _('In stock') }} {%- else-%}  {{ _('Out of stock') }} {%- endif -%}
                                 </span>
                             {%- endif -%}
 

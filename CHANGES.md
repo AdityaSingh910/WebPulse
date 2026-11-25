@@ -163,3 +163,85 @@ Language flag images were pruned to `gb` and `us`, shrinking them from 5.1 MB to
 * **Added:** the per-file modification notices (75 files), the `NOTICE` addendum, this file,
   `docs/SIMPLIFICATION_REPORT.md`, and a new `README.md`.
 * **Renamed:** the original README is now `README.upstream.md`.
+
+## Phase 9: WebPulse redesign and rebranding
+
+The project is renamed **WebPulse - Automated Web Monitoring and Price Analytics System**. The backend,
+algorithms, data model and architecture are unchanged; this phase changes the presentation layer, removes clutter,
+and fixes two small front-end bugs.
+
+### New files
+
+| File | What it is |
+|---|---|
+| `static/styles/scss/webpulse.scss` → `webpulse.css` | The WebPulse design system: tokens for light and dark mode, the app shell, cards, buttons, forms, tabs, table, badges, modals, the sign-in page and responsive layout. It is linked last in `base.html`, so it defines the final look |
+| `static/js/webpulse-ui.js` | The mobile navigation drawer, plus the masked-secret control (API key reveal/copy, with a clipboard fallback) |
+| `static/images/webpulse-logo.svg`, `webpulse-mark.svg` | Original logo artwork |
+| `branding/make_brand_assets.py` | Regenerates the logo, the mark and every favicon from one geometry |
+| `demo/seed_demo.py` | Builds the demonstration datastore: live watches on sites that allow scraping, plus paused, clearly labelled sample watches with simulated history |
+| `e2e/ui_test.py` | 26 browser UI tests in Microsoft Edge, run with `run_e2e.ps1 -UI` |
+| `docs/screenshots/` | Screenshots for the report and presentation |
+
+### Rewritten
+
+These templates are WebPulse originals:
+* `templates/base.html`: the shell (sidebar, top bar, page titles), with the CSRF, i18n and Socket.IO script blocks
+  and the tab helper kept verbatim;
+* `templates/sidebar-nav.html`, the labelled "Monitor" and "Manage" navigation with a live status card;
+* `templates/menu.html`, the top-bar actions;
+* `templates/login.html`.
+
+### Replaced
+
+All favicons (`static/favicons/*`) and `static/images/avatar-256x256.png` were replaced with WebPulse artwork.
+`browserconfig.xml` now uses the WebPulse tile colour.
+
+### Removed from the interface
+
+* The GitHub button, the donation heart, its "support us" overlay (with social and review links), and the
+  "Let us host your instance" link.
+* The language selector modal and flag, `flag-icons.min.css`, `static/flags/`, and `language-selector.js`. The
+  app is English only.
+* Version labels, the "new version available" link, and the upstream logo and links in the sidebar.
+* The disabled "Browsers – coming soon" menu item, and the three sidebar modes (`sidebar.js`, `hamburger-menu.js`,
+  `menu-pop.js`, and the `sidebar_mode` setting).
+* Chrome-extension promotions (settings API tab, overlay), the BrightData/Oxylabs affiliate proxy promotions,
+  the "extra browsers" (paid scraping browser) section, and the upstream tutorial/wiki/plugins links. Where a
+  link carried help text, the text is kept as plain text.
+* The "Share diff as image" feature, which loaded html2canvas and piexifjs from a CDN and offered social sharing
+  (`snippet-to-image.js`). No external scripts remain.
+* The "share watch" button and its setting (`use_share_watch`). It posted watches to an upstream web service.
+* Unused images: `brightdata.svg`, `oxylabs.svg`, `spread*.svg`, `copy.svg`.
+* SCSS partials: `_top_menu`, `_action_sidebar`, `_hamburger_menu`, `_love`, `_language`, `_extra_browsers`.
+
+### Settings simplified
+
+* **Tabs:** the settings tabs are General, Fetching, Filters, Time & date, Appearance, API, Proxies, Backups and
+  About. The RSS tab was removed; its single option (RSS reader mode) moved to Fetching.
+* **API tab:** the key is masked by default, with Reveal and Copy buttons.
+* **About tab:** the old Info tab is now About, with the open-source attribution and system information.
+
+### Rebranded text
+
+* **Notifications:**
+  * The default title is now "WebPulse - change detected - {{watch_url}}", and the alert titles say "WebPulse".
+  * The Apprise application identity is WebPulse.
+  * The upstream avatar URL (hosted on upstream's GitHub) is no longer attached to chat notifications.
+* **Help texts:** they say Chrome/Javascript (Playwright) instead of WebDriver/Selenium.
+* **Fresh-install defaults:** the default second watch is the python.org releases page, instead of
+  changedetection.io's changelog.
+
+### Bug fixes, both present in upstream too
+
+* `static/js/plugins.js`: `toggleOpacity` and `toggleVisibility` returned early when their checkbox was absent,
+  which removed a page error on Settings.
+* `static/js/scheduler.js`: the time-zone clock no longer logs an error every 500 ms on pages without a time-zone
+  field.
+
+### Modified with notice headers
+
+`settings.html`, `settings-tabs.html`, `edit.html`, `diff.html`, `diff-offscreen-options.html`,
+`watch-overview.html`, `watch-overview-single-row.html`, `_common_fields.html`, `_helpers.html`,
+`include_subtract.html`, `apprise.html`, `import.html`, `forms.py`, `store/__init__.py`, `notification/__init__.py`,
+`notification/handler.py`, `notification/apprise_plugin/assets.py`, `notification_service.py`, `toggle-theme.js`,
+`plugins.js`, `scheduler.js`. `styles.css` was regenerated.

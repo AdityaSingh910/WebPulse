@@ -167,6 +167,7 @@
 function toggleOpacity(checkboxSelector, fieldSelector, inverted) {
     const checkbox = document.querySelector(checkboxSelector);
     const fields = document.querySelectorAll(fieldSelector);
+    if (!checkbox) return;  // WebPulse fix: the controlling checkbox is not on every page (e.g. no time zone set yet)
 
     function updateOpacity() {
         const opacityValue = !checkbox.checked ? (inverted ? 0.6 : 1) : (inverted ? 1 : 0.6);
@@ -184,6 +185,7 @@ function toggleOpacity(checkboxSelector, fieldSelector, inverted) {
 function toggleVisibility(checkboxSelector, fieldSelector, inverted) {
     const checkbox = document.querySelector(checkboxSelector);
     const fields = document.querySelectorAll(fieldSelector);
+    if (!checkbox) return;  // WebPulse fix: the controlling checkbox is not on every page (e.g. no time zone set yet)
 
     function updateOpacity() {
         const opacityValue = !checkbox.checked ? (inverted ? 'none' : 'block') : (inverted ? 'block' : 'none');

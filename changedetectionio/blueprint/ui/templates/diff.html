@@ -14,10 +14,7 @@
     // Initial scroll position: if set, scroll to this line number in #difference on page load
     const initialScrollToLineNumber = {{ initial_scroll_line_number|default('null') }};
 </script>
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="{{url_for('static_content', group='js', filename='plugins.js')}}"></script>
-<script src="https://cdn.jsdelivr.net/npm/piexifjs@1.0.6/piexif.min.js"></script>
-<script src="{{url_for('static_content', group='js', filename='snippet-to-image.js')}}"></script>
 <script src="{{url_for('static_content', group='js', filename='diff-overview.js')}}" defer></script>
 
 
@@ -155,7 +152,7 @@
         </div>
         <pre id="difference" style="border-left: 2px solid #ddd;">{{ content| diff_unescape_difference_spans }}</pre>
     <div id="diff-visualiser-area-after" style="user-select: none;">
-        <strong>{{ _('Tip:') }}</strong> {{ _('Highlight text to share or add to ignore lists.') }}
+        <strong>{{ _('Tip:') }}</strong> {{ _('Highlight text in the difference to add it to the ignore list.') }}
         &nbsp;&mdash;&nbsp;<a href="{{ url_for('ui.ui_diff.download_patch', uuid=uuid, from_version=from_version, to_version=to_version) }}" target="_blank" rel="noopener" style="font-size:0.85em;">{{ _('Download difference patch') }}</a>
     </div>
     </div>
@@ -172,7 +169,7 @@
               {{ _('No screenshot available just yet! Try rechecking the page.') }}
            {% endif %}
          {% else %}
-           <strong>{{ _('Screenshot requires Playwright/WebDriver enabled') }}</strong>
+           <strong>{{ _('Screenshots require the Chrome/Javascript (Playwright) fetcher') }}</strong>
          {% endif %}
      </div>
 

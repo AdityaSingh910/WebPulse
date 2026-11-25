@@ -192,3 +192,68 @@ pluggy_interface.py: plugin hooks (fetchers, processor states, charts, condition
 Compared with upstream, the following are gone: the LLM evaluator in the worker pipeline, the MCP JSON-RPC server
 and its OAuth, the RSS output feed endpoints, the PWA endpoints, the proxy checker, the Selenium and Puppeteer
 fetchers, and the image-SSIM processor.
+
+---
+
+## 8. WebPulse redesign (Phase 9)
+
+The simplified application was rebranded **WebPulse - Automated Web Monitoring and Price Analytics System**, and
+its interface was redesigned. The backend, algorithms and architecture are unchanged (§7). The full change list is
+in CHANGES.md, Phase 9, and screenshots are in `docs/screenshots/`.
+
+**Design:**
+* **Visual identity:**
+  * A clean, light-first, minimal look: slate neutrals, one teal brand colour, and white cards on a soft grey
+    page. The full-screen gradient is gone.
+  * An original "pulse" logo and favicon set.
+  * A full dark mode, and a layout that works down to phone width.
+* **Navigation:**
+  * A labelled sidebar in two sections. **Monitor:** Dashboard, Visual add, Groups, Search. **Manage:**
+    Notifications, Import, Queue, Settings.
+  * A live status card shows how many checks are running, with an activity graph.
+  * A top bar shows the page title, the Monitoring/Paused and Alerts toggles, dark mode, and sign-out.
+* **Settings:** nine plain tabs. The API key is masked, with Reveal and Copy. The About tab carries the
+  open-source attribution.
+* **Removed clutter:**
+  * the GitHub button, donation heart and overlay, language selector and flags, version labels;
+  * the "Browsers – soon" item and the Chrome-extension and affiliate promotions;
+  * the upstream tutorial links, the CDN-loaded share-as-image feature, and the external "share watch" service.
+
+**Demonstration data:** `demo/seed_demo.py` creates two kinds of watches.
+* **Five live watches.** On first start, all five were fetched without errors:
+
+  | Site | What it shows | Result |
+  |---|---|---|
+  | `books.toscrape.com` | Price via a CSS filter | £51.77 |
+  | `webscraper.io` test shop | Price via microdata | $295.99 |
+  | `quotes.toscrape.com/js/` | JavaScript-rendered page, fetched through Edge | The quotes were captured |
+  | Hacker News | Change detection on a frequently changing page | Fetched |
+  | python.org downloads | A CSS-filtered page | Fetched |
+
+  `scrapingcourse.com` was **not** used, because its robots.txt disallows `/ecommerce/*`.
+* **Three sample watches** with simulated history, paused and labelled "[Sample data]". Two are price/stock
+  histories (24 and 20 points over 60 days, including an out-of-stock period), and one has four text versions.
+
+**Results after the redesign:**
+
+| | Result |
+|---|---|
+| End-to-end harness | **87/87**: core 40, persistence 5, security 8, browser 8, plus **26/26 browser UI tests** that click through the real interface in Edge |
+| UI tests cover | Adding watches, edit/save, recheck, history and diff, preview, price watch, inline and full price charts, groups, search, API key reveal/copy, settings save, notification send-test, import, pause, mute, dark mode, delete with confirmation, queue and backups, the mobile drawer, password sign-in, 51 internal links (none broken), external links limited to attribution and technical references, and no JavaScript errors |
+| Upstream unit tests | 430 passed, 0 new failures (the same 10 known Windows-only failures) |
+| Templates / imports | 32/32 templates parse, 52/52 third-party imports resolve |
+| RAM, same harness | 122.9 MB after the core workload (was 145.7 MB) and 95.4 MB idle (was 119.5 MB), mainly because the old shell scripts and styles are gone |
+| Front-end size | `styles.css` 88 KB plus `webpulse.css` 27 KB, versus 106.5 KB before. Templates went from 4,636 to 4,289 lines and JS from 6,377 to 5,460. There are no external scripts or fonts |
+
+**Bugs found while testing, and fixed:**
+1. The Settings page threw a JavaScript error when no time zone was set: `toggleVisibility` was missing a null
+   check.
+2. `scheduler.js` logged an error every 500 ms on pages without the time-zone field.
+
+Both are present in upstream too.
+
+**Additional limitations:**
+* The two live e-commerce test pages do not publish machine-readable stock, so their stock shows as unknown. The
+  price is tracked.
+* The upstream integration tests that assert old notification titles or the upstream avatar URL would need
+  updating. They are Linux-only, so they were not run here.

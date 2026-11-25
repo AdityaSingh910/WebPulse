@@ -1,3 +1,4 @@
+{# Modified 2026 for the simplified (academic) fork of changedetection.io - optional features removed, see CHANGES.md #}
 {% macro render_field(field) %}
     <div {% if field.errors or field.top_errors %} class="error" {% endif %}>{{ field.label }}</div>
     <div {% if field.errors or field.top_errors %} class="error" {% endif %}>{{ field(**kwargs)|safe }}
@@ -264,7 +265,7 @@
         </ul>
     <br>
         <span class="pure-form-message-inline">
-         <a href="https://changedetection.io/tutorial/checking-web-pages-changes-according-schedule">{{ _('More help and examples about using the scheduler') }}</a>
+         {{ _('More help and examples about using the scheduler') }}
         </span>
     </div>
     {% else %}
