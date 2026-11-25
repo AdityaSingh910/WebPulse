@@ -14,8 +14,7 @@ $(document).ready(() => {
     const $includeFilters = $('#include_filters');
     const $temporaryUuid = $('#temporary_uuid');
 
-    // When the LLM intent box isn't available (LLM_FEATURES_DISABLED / not configured) the
-    // template renders no "Select by element" checkbox - element selection is the only thing
+    // The template renders no "Select by element" checkbox - element selection is the only thing
     // this page can do, so it is on from the start and can't be turned off.
     const selectionAlwaysOn = $byElement.length === 0;
     const selectionEnabled = () => selectionAlwaysOn || $byElement.is(':checked');

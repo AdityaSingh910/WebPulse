@@ -31,15 +31,12 @@
 @use "parts/queue";
 @use "parts/hamburger_menu";
 @use "parts/search_modal";
-@use "parts/llm";
-@use "parts/mcp";
 @use "parts/notification_bubble";
 @use "parts/notifications";
 @use "parts/restock_graph";
 @use "parts/toast";
 @use "parts/login_form";
 @use "parts/tabs";
-@use "parts/sub_tabs";
 
 // Smooth transitions for theme switching
 // Disabled - people complained
@@ -913,7 +910,7 @@ ul {
     width: 5em;
 }
 
-// Click to copy (static/js/click-to-copy.js), e.g. the API key on /settings and the MCP Server tab: the hint
+// Click to copy (static/js/click-to-copy.js), e.g. the API key on /settings: the hint
 // floats over its box, so showing it never moves the page
 .click-to-copy {
   cursor: pointer;
@@ -934,10 +931,6 @@ ul {
   }
 }
 
-.mcp-snippet {
-  position: relative;
-  cursor: pointer;
-}
 
 .click-to-copy-hint {
   position: absolute;
@@ -968,15 +961,13 @@ ul {
     color: #1f8a4c;
   }
 
-  .click-to-copy-inline:hover &,
-  .mcp-snippet:hover & {
+  .click-to-copy-inline:hover & {
     opacity: 1;
     visibility: visible;
     transition: opacity 0.12s ease, visibility 0s;
   }
 }
 
-// The MCP Server tab: an on/off bar, then the vertical sub-tabs (_sub_tabs.scss) with these panes in them
 .button-green {
   background-color: var(--color-background-button-green);
 }

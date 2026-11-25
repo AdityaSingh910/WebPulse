@@ -229,18 +229,15 @@ class ChangeDetectionSpec:
         method doesn't find good data.
 
         The first implementation to return a non-None result wins and the rest are skipped,
-        so return None (not an empty dict) when you have nothing. The built-in LLM restock
-        plugin (litellm) is registered trylast, so your own plugin, for example one that
-        POSTs to an LLM with plain `requests`, always gets the first go and the built-in
-        one is never billed when yours already answered. See plugins/llm_restock.py for
-        the prompt, cache and reply-parsing helpers you can reuse without importing litellm.
+        so return None (not an empty dict) when you have nothing.
 
         Args:
             content: The HTML content that was just fetched
             fetcher_name: The name of the fetcher being used (e.g., 'html_js_zyte')
             fetcher_instance: The fetcher instance that generated the content
             url: The URL being watched/checked
-            llm_intent: Optional user-supplied intent string (e.g. "alert when price drops below $300")
+            llm_intent: Always None in this simplified build (the LLM features were removed); kept
+                        so existing plugins with this argument keep working
             text: The same content converted with html_to_text(). Only computed when an
                   implementation declares this argument, so leave it out if you don't need it.
 
@@ -531,84 +528,9 @@ class ChangeDetectionSpec:
             source: what triggered it:
                 'history'         - the watch's history / diff page was opened
                 'watchlist_chart' - a processor's chart rolled down under the watch list row
-                'llm_summary'     - the AI summary rolled down under the watch list row
                 'mark_viewed'     - the "Mark viewed" action on selected watches
                 'mark_unviewed'   - the "Mark unviewed" action on selected watches
                 'mark_all_viewed' - the "Mark all viewed" button, once per watch in view
-        """
-        pass
-
-    @hookspec
-    def register_mcp_tools():
-        """Add tools to the MCP server (/mcp/v1), typically ones only a processor can answer.
-
-        Return a list of tool dicts. Core adds them to tools/list next to its own and wraps each one, so a
-        plugin never deals with MCP itself:
-        - the arguments are checked against `input_schema` before the handler runs;
-        - read-only mode and ?readonly=1 offer only the 'read' tools, from `kind`;
-        - a `watch` argument is resolved (uuid, or part of the title or URL) and, with `processor` set,
-          refused with a readable error when that monitor uses another processor;
-        - a ToolError (changedetectionio.blueprint.mcp.tools.ToolError) becomes an error the assistant
-          reads and can correct, any other exception an internal error;
-        - the text is capped in length.
-
-        The tool list is the same for every connection (MCP clients cache it), so list your tools whenever
-        the plugin is installed, not only while some monitor uses your processor.
-
-        Each dict:
-            name:         a-z, 0-9 and _, at most 64 characters, starting with a letter. Prefix it with
-                          your processor's name, e.g. 'restock_status'. A name core already uses is skipped.
-            title:        short, shown to the user, e.g. 'Stock and prices'
-            description:  what it answers, written for the assistant
-            kind:         'read' (changes nothing), 'write' or 'destructive' (can't be undone)
-            input_schema: JSON Schema properties, e.g. {'watch': tools.WATCH_ARGUMENT}. Unknown
-                          arguments are refused.
-            required:     optional list of required argument names
-            processor:    optional processor name its `watch` argument must use, e.g. 'restock_diff'
-            area:         optional row of the None / Read / Write permission grid the tool belongs to:
-                          one of core's ('monitors', the default, 'tags', 'notifications', 'browser',
-                          'system') or one a plugin adds with register_mcp_permission_rows. An access
-                          token only gets the tool with Read (for 'read' tools) or Write on that row.
-            open_world:   optional, True when it reaches outside this instance (another service, a
-                          payment provider...), so clients may ask the user first (MCP openWorldHint)
-            handler:      handler(ctx, args, watch) -> (text, structured_dict). ctx.datastore and
-                          ctx.update_q, args as validated, watch the resolved Watch or None.
-                          An access token can be limited to some tags (groups): list monitors with
-                          ctx.watches() (or check ctx.in_scope(watch)), never datastore.data['watching']
-                          directly, and resolve tags with tools._resolve_tag(ctx, ...). The `watch`
-                          argument is already resolved within the token's groups.
-
-        Text that comes from monitored pages should start with tools.UNTRUSTED_NOTE.
-
-        Example (the built-in restock tools, processors/restock_diff/plugins/mcp_tools.py):
-            @hookimpl
-            def register_mcp_tools():
-                return [{'name': 'restock_status', 'title': 'Stock and prices', 'kind': 'read',
-                         'description': 'Which product monitors are in stock, and their prices.',
-                         'input_schema': {'tag': {'type': 'string'}}, 'handler': restock_status}]
-
-        Returns:
-            list of dict, or None
-        """
-        pass
-
-    @hookspec
-    def register_mcp_permission_rows():
-        """Add rows to the MCP None / Read / Write permission grid (access tokens and the OAuth consent screen),
-        for plugin tools that aren't about monitors, e.g. an 'account' row for a sign-up tool. A tool joins a row
-        with its `area` (see register_mcp_tools).
-
-        A row is None for every existing token until the owner changes it, and only offers the levels its
-        tools need: Read when one of them is 'read', Write when one changes something. A row no tool uses is
-        left out.
-
-        Each dict:
-            name:        a-z, 0-9 and _, at most 32 characters, starting with a letter; not one of core's rows
-            label:       shown in the grid, e.g. 'Account & billing'
-            description: optional, one line under the label: what Read / Write let an assistant do
-
-        Returns:
-            list of dict, or None
         """
         pass
 
@@ -760,9 +682,9 @@ def load_plugins_from_directories():
         plugin_manager.register(default_plugin, 'conditions_default_plugin')
 
     # List of (python_package_prefix, filesystem_path) pairs to scan for plugins.
-    # NOTE: processors/restock_diff/plugins is intentionally excluded here — those
-    # plugins are registered via register_builtin_restock_plugins() to avoid the
-    # circular import: restock_diff/__init__.py → model.Watch → content_fetchers → pluggy_interface.
+    # NOTE: processors/restock_diff/plugins is intentionally excluded here — those built-in
+    # plugins are registered explicitly (register_builtin_api_plugins, restock_diff/__init__.py)
+    # to avoid the circular import: restock_diff/__init__.py → model.Watch → content_fetchers → pluggy_interface.
     plugin_dirs = [
         (
             'changedetectionio.conditions.plugins',
@@ -835,38 +757,17 @@ def register_builtin_fetchers():
         plugin_manager.register(webdriver_selenium.webdriver_selenium_plugin, 'builtin_webdriver_selenium')
 
 
-def register_builtin_restock_plugins():
-    """Register built-in restock processor plugins after all imports are complete.
-
-    Only called from changedetectionio.main() (so not when the app is built directly, e.g. in tests),
-    deferred to avoid the circular import that occurs when loading via load_plugins_from_directories()
-    (restock_diff/__init__.py → model.Watch → content_fetchers → pluggy_interface).
-    """
-    import importlib
-    module_path = 'changedetectionio.processors.restock_diff.plugins.llm_restock'
-    try:
-        module = importlib.import_module(module_path)
-        if not plugin_manager.is_registered(module):
-            plugin_manager.register(module, 'llm_restock')
-            logger.debug("Registered built-in restock plugin: llm_restock")
-    except Exception as e:
-        logger.error(f"Failed to register llm_restock plugin: {e}")
-
-
 def register_builtin_api_plugins():
-    """Register the built-in get_api_watch_processor_state and register_mcp_tools implementations.
+    """Register the built-in get_api_watch_processor_state implementation.
 
     Called from flask_app.changedetection_app() where the API resources are set up, so it runs
-    however the app is started. Can't happen at module load for the same circular import reason
-    as register_builtin_restock_plugins().
+    however the app is started. Can't happen at module load because of the circular import
+    restock_diff/__init__.py -> model.Watch -> content_fetchers -> pluggy_interface.
     """
-    from changedetectionio.processors.restock_diff.plugins import api_state, mcp_tools
+    from changedetectionio.processors.restock_diff.plugins import api_state
     if not plugin_manager.is_registered(api_state):
         # 'builtin_' names are hidden from the active plugins list, see get_active_plugins()
         plugin_manager.register(api_state, 'builtin_restock_api_state')
-    # The restock MCP tools (register_mcp_tools). Light to import: what they need is imported when they run
-    if not plugin_manager.is_registered(mcp_tools):
-        plugin_manager.register(mcp_tools, 'builtin_restock_mcp_tools')
 
 def _require_login_before_request():
     from changedetectionio.auth_decorator import login_optionally_required
@@ -1030,7 +931,7 @@ def get_itemprop_availability_from_plugin(content, fetcher_name, fetcher_instanc
         fetcher_name: The name of the fetcher being used (e.g., 'html_js_zyte')
         fetcher_instance: The fetcher instance that generated the content
         url: The URL being watched (watch.link - includes Jinja2 evaluation)
-        llm_intent: Optional user-supplied intent string passed through to plugins
+        llm_intent: Kept for plugin API compatibility, always None in this simplified build
 
     Returns:
         dict or None: Availability data dictionary from first matching plugin, or None

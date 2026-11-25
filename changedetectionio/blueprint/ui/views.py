@@ -90,7 +90,6 @@ def construct_blueprint(datastore: ChangeDetectionStore, update_q, queuedWatchMe
         add_paused = request.form.get('edit_and_watch_submit_button') != None
         from changedetectionio import processors
         processor = request.form.get('processor', processors.get_default_processor())
-        llm_intent = request.form.get('llm_intent', '').strip()
         extras = {'paused': add_paused, 'processor': processor}
 
         # Browser picked on the Add Watch page (validated against the live-preview capable
@@ -99,8 +98,6 @@ def construct_blueprint(datastore: ChangeDetectionStore, update_q, queuedWatchMe
         # overrides this inside make_temporary_watch_active_watch().
         if form.fetch_backend.data:
             extras['fetch_backend'] = form.fetch_backend.data
-        if llm_intent:
-            extras['llm_intent'] = llm_intent
 
         # Filters picked with the Add Watch visual selector ("by element" mode)
         include_filters = [l.strip() for l in request.form.get('include_filters', '').split('\n') if l.strip()]

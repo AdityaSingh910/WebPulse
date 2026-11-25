@@ -211,6 +211,25 @@ def mode_core():
     r2 = api('GET', f'/watch/{victim}')
     check('E18', 'API delete watch', r.status_code in (200, 204) and r2.status_code == 404, f'{r.status_code}/{r2.status_code}')
 
+    # Every remaining UI page must render (catches template errors from removed features)
+    pages = ['/tags/list', f'/tags/edit/{tag_uuid}', '/imports/import', '/settings/notifications/',
+             '/settings/notification-logs', '/backups/create', '/clear_history', f'/diff/{text_uuid}/extract',
+             '/queue.json', f'/edit/{sched_uuid}', '/login']
+    bad = {}
+    for p in pages:
+        r = s.get(BASE + p, timeout=30, allow_redirects=False)
+        if r.status_code not in (200, 302):
+            bad[p] = r.status_code
+    check('E21', f'All other UI pages render ({len(pages)} pages)', not bad, bad or 'all OK')
+
+    # Group (tag) edit form saves via the real form + CSRF token
+    page = s.get(f'{BASE}/tags/edit/{tag_uuid}', timeout=30).text
+    m = re.search(r'name="csrf_token"[^>]*value="([^"]+)"', page) or re.search(r'value="([^"]+)"[^>]*name="csrf_token"', page)
+    r = s.post(f'{BASE}/tags/edit/{tag_uuid}', data={'csrf_token': m.group(1) if m else '', 'title': 'Electronics-renamed'},
+               timeout=30, allow_redirects=False)
+    t = api('GET', '/tags').json()
+    check('E22', 'Group edit form saves (UI + CSRF)', r.status_code in (200, 302) and 'Electronics-renamed' in json.dumps(t), r.status_code)
+
     removed = [p for p in OPTS.get('expect-removed', '').split(',') if p]
     if removed:
         bad = {}

@@ -73,8 +73,7 @@ $(function () {
     });
 
     // Inline restock price/stock graph: for restock_diff rows the History button rolls down a
-    // price/stock graph (no LLM needed), styled like the AI summary roll-down. Registered before
-    // the LLM handler and stops propagation so AI mode never turns these into LLM summaries.
+    // price/stock graph.
     $(document).on('click', 'tr.processor-restock_diff .ai-history-btn', function (e) {
         e.preventDefault();
         e.stopImmediatePropagation();
@@ -404,115 +403,5 @@ $(function () {
         nowtimeserver = nowtimeserver + time_check_step_size_seconds;
     }, time_check_step_size_seconds * 1000);
 
-    // LLM / AI features — only active when the server has LLM configured
-    if ($('body').hasClass('llm-configured')) {
-        var i18n = window.watchOverviewI18n || {};
-        var msgGenerating = i18n.generatingSummary || 'Generating change summary…';
-        var msgHistory    = i18n.gotoHistory     || 'Goto full history';
-
-        // Reveal intent textarea on first keydown in the quick-add URL field
-        var $intentWrap = $('#quick-watch-llm-intent');
-        if ($intentWrap.length) {
-            $('#new-watch-form input[name="url"]').one('keydown', function () {
-                $intentWrap.slideDown(200);
-            });
-        }
-
-        // Inline AI summary — clicking the Summary button inserts a row below with AJAX content
-        $(document).on('click', '.ai-history-btn', function (e) {
-            // restock_diff rows have their own graph roll-down handler (above) - never LLM here.
-            if ($(this).closest('tr').hasClass('processor-restock_diff')) return;
-            if ($('html').attr('data-ai-mode') !== 'true') return; // normal navigation when AI mode is off
-
-            e.preventDefault();
-
-            var $btn   = $(this);
-            var uuid   = $btn.data('uuid');
-            var url    = $btn.data('summary-url');
-            var $row   = $btn.closest('tr');
-            var rowId  = 'ai-summary-row-' + uuid;
-            var cols   = $row.find('td').length;
-            var $tbody = $row.closest('tbody');
-
-            // Toggle: remove existing row if already open
-            if ($('#' + rowId).length) {
-                $('#' + rowId).remove();
-                $tbody.find('tr:not(.ai-inline-summary-row) td').css('background-color', '');
-                return;
-            }
-
-            // Snapshot row backgrounds BEFORE DOM mutation — inserting a <tr> shifts nth-child parity
-            var $dataRows = $tbody.find('tr:not(.ai-inline-summary-row)');
-            var bgMap = [];
-            $dataRows.each(function () {
-                bgMap.push($(this).find('td:first').css('background-color'));
-            });
-
-            var $summaryRow = $(
-                '<tr class="ai-inline-summary-row" id="' + rowId + '">' +
-                '<td colspan="' + cols + '">' +
-                '<div class="ai-inline-summary-content">' +
-                '<span class="ai-inline-spinner">&#x2728;</span>' +
-                '<div class="ai-inline-body">' +
-                '<span class="ai-inline-text">' + $('<span>').text(msgGenerating).html() + '</span>' +
-                '</div>' +
-                '</div>' +
-                '</td></tr>'
-            );
-            $row.after($summaryRow);
-
-            // Re-apply frozen backgrounds so the nth-child parity shift is invisible
-            $dataRows.each(function (i) {
-                $(this).find('td').css('background-color', bgMap[i]);
-            });
-
-            function formatSummary(text) {
-                var sectionRe = /^(Added|Changed|Removed|Updated|New|Deleted)\s*:/i;
-                return text.split('\n').map(function (line) {
-                    var safe = $('<span>').text(line).html();
-                    return sectionRe.test(line.trim())
-                        ? safe.replace(/^(\w[\w\s]*)(\s*:)/i, '<strong>$1$2</strong>')
-                        : safe;
-                }).join('<br>');
-            }
-
-            var promptUrl = url + '/prompt';
-
-            // Present the built prompt to the user
-            $.getJSON(promptUrl)
-                .done(function (data) {
-                    if (data.prompt && $summaryRow.find('.ai-inline-summary-content:not(.loaded)').length) {
-                        $summaryRow.find('.ai-inline-body').append(
-                            '<span class="ai-inline-prompt">' + $('<span>').text(data.prompt).html() + '</span>'
-                        );
-                    }
-                });
-            // And at the same time start the summary: POST kicks off generation (CSRF token
-            // added by csrf.js), then llm-summary.js polls until it lands. Polling stops by
-            // itself if the user toggles the row shut.
-            window.llmSummary.fetch({
-                url: url,
-                uuid: uuid,
-                isCancelled: function () {
-                    return !$.contains(document.documentElement, $summaryRow[0]);
-                },
-                onDone: function (summary) {
-                    var $content = $summaryRow.find('.ai-inline-summary-content');
-                    $content.addClass('loaded');
-                    $content.find('.ai-inline-text').html(formatSummary(summary));
-                    $content.find('.ai-inline-prompt').remove();
-                    $content.find('.ai-inline-body').append(
-                        '<a href="' + $btn.attr('href') + '" class="ai-inline-history-link">' +
-                        $('<span>').text(msgHistory).html() + '</a>'
-                    );
-                },
-                onError: function (msg) {
-                    $summaryRow.find('td').html(
-                        '<span class="ai-inline-error">' + $('<span>').text(msg).html() + '</span>'
-                    );
-                }
-            });
-        });
-    }
 });
 

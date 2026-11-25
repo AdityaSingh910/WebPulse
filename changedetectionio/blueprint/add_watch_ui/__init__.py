@@ -17,9 +17,6 @@ def construct_blueprint(datastore: ChangeDetectionStore):
     @add_watch_ui_blueprint.route("/", methods=['GET'])
     @login_optionally_required
     def add_watch_ui_index():
-        from changedetectionio.llm.evaluator import get_llm_config as _get_llm_config
-        from changedetectionio.llm.ui_strings import LLM_INTENT_WATCH_PLACEHOLDER
-
         # Same gate that hides the sidebar link (sidebar-nav.html): with no browser that can
         # render a preview there is nothing for the visual selector to work on, so bounce
         # direct navigation rather than serving a page whose only outcome is an error.
@@ -29,7 +26,6 @@ def construct_blueprint(datastore: ChangeDetectionStore):
             return redirect(url_for('watchlist.index'))
 
         form = forms.quickWatchForm(None)
-        llm_configured = bool(_get_llm_config(datastore))
 
         # Start on the browser the live preview would actually use
         form.fetch_backend.data = browser_config.default_visual_browser(datastore)
@@ -43,8 +39,6 @@ def construct_blueprint(datastore: ChangeDetectionStore):
             browser_backend_disabled=strtobool(os.getenv('ADD_WATCH_UI_BROWSER_BACKEND_DISABLED', 'False')),
             active_tag_title=active_tag_title,
             form=form,
-            llm_configured=llm_configured,
-            llm_intent_watch_placeholder=LLM_INTENT_WATCH_PLACEHOLDER,
             # Listed but not selectable (the system default when it can't render a preview)
             unusable_browsers=browser_config.unusable_values(datastore),
             system_default_browser=browser_config.system_default_description(datastore),

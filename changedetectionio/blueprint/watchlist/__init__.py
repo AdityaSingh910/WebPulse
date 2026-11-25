@@ -112,9 +112,6 @@ def construct_blueprint(datastore: ChangeDetectionStore, update_q, queuedWatchMe
         from changedetectionio import content_fetchers
         available_fetchers = content_fetchers.available_fetchers()
 
-        from changedetectionio.llm.evaluator import get_llm_config as _get_llm_config
-        from changedetectionio.llm.ui_strings import LLM_INTENT_WATCH_PLACEHOLDER
-        llm_configured = bool(_get_llm_config(datastore))
 
         # Everything the row markup itself needs comes from here, shared with the Socket.IO
         # row push so a live-updated row can't drift from the server-rendered one.
@@ -136,7 +133,6 @@ def construct_blueprint(datastore: ChangeDetectionStore, update_q, queuedWatchMe
             # body classes for app-wide state; realtime.js keeps these in sync live
             # (has-any-unviewed reveals the "Mark all viewed" button - see _watch_table.scss)
             extra_classes=' '.join(filter(None, ['has-queue' if not update_q.empty() else '',
-                                                 'llm-configured' if llm_configured else '',
                                                  'has-any-unviewed' if datastore.unread_changes_count else ''])),
             form=form,
             generate_tag_colors=processors.generate_processor_badge_colors,
@@ -159,8 +155,6 @@ def construct_blueprint(datastore: ChangeDetectionStore, update_q, queuedWatchMe
             tags=sorted_tags,
             unread_changes_count=datastore.unread_changes_count,
             watches=sorted_watches,
-            llm_configured=llm_configured,
-            llm_intent_watch_placeholder=LLM_INTENT_WATCH_PLACEHOLDER,
         )
 
         # Return freed template-building memory to the OS immediately.

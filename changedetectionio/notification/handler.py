@@ -397,21 +397,8 @@ def process_notification(n_object: NotificationContextData, datastore):
         )
     )
 
-    # {{ raw_diff }} always holds the actual diff regardless of AI Change Summary
+    # {{ raw_diff }} is an alias of {{ diff }} (kept for notification templates that use it)
     n_object['raw_diff'] = n_object.get('diff', '')
-
-    # AI Change Summary: optionally replace {{ diff }} with the AI summary
-    _llm_change_summary = (n_object.get('_llm_change_summary') or '').strip()
-    from changedetectionio.llm.evaluator import get_llm_settings
-    _override_diff = get_llm_settings(datastore).override_diff_with_summary
-    if _llm_change_summary and _override_diff:
-        n_object['diff'] = _llm_change_summary
-
-    # Lazily populate llm_summary / llm_intent if used in notification template
-    scan_text = n_object.get('notification_body', '') + n_object.get('notification_title', '')
-    if 'llm_summary' in scan_text or 'llm_intent' in scan_text or 'raw_diff' in scan_text:
-        n_object['llm_summary'] = _llm_change_summary or (n_object.get('_llm_result') or {}).get('summary', '')
-        n_object['llm_intent'] = n_object.get('_llm_intent', '')
 
     # Escape diff/snapshot variables before Jinja renders them into an HTML notification.
     # GHSA-q8xq-qg4x-wphg: inscriptis decodes HTML entities when converting text/html

@@ -6,7 +6,6 @@
 ] -%}
 {%- from '_helpers.html' import render_simple_field, render_field, render_nolabel_field, sort_by_title -%}
 <script src="{{url_for('static_content', group='js', filename='jquery-3.6.0.min.js')}}"></script>
-<script src="{{url_for('static_content', group='js', filename='llm-summary.js')}}" defer></script>
 <script src="{{url_for('static_content', group='js', filename='watch-overview.js')}}" defer></script>
 <script src="{{url_for('static_content', group='js', filename='restock-price-graph.js')}}" defer></script>
 <script src="{{url_for('static_content', group='js', filename='modal.js')}}"></script>
@@ -130,16 +129,12 @@ document.addEventListener('DOMContentLoaded', function() {
     {%- endfor -%}
 </style>
 
-{% if llm_configured %}
 <script>
 window.watchOverviewI18n = {
-    generatingSummary: {{ _('Generating change summary…')|tojson }},
-    gotoHistory:       {{ _('Goto full history')|tojson }},
     loadingPriceHistory: {{ _('Loading price history…')|tojson }},
     priceHistoryError: {{ _('Could not load price history.')|tojson }}
 };
 </script>
-{% endif %}
 
 
 <div class="box" id="add-watch-ui">
@@ -152,16 +147,6 @@ window.watchOverviewI18n = {
             {{ render_nolabel_field(form.url, placeholder="www.website.com/page.html", required=true, class="pure-input-1", span_wrap=false) }}
             <button type="submit"  id="add-watch-go" class="pure-button pure-button-primary">{{ _('Watch') }}</button>
         </div>
-        {% if llm_configured %}
-        <div class="add-watch-option-group" id="quick-watch-llm-intent">
-            <label for="quick_watch_llm_intent"><strong>{{ _('What matters — when to notify me') }}</strong></label>
-            <textarea name="llm_intent"
-                      id="quick_watch_llm_intent"
-                      rows="4"
-                      class="pure-input-1"
-                      placeholder="{{ _('e.g. Notify me when products go in/out of stock, lead times change by more than a week, or new product variants appear. Skip review additions.') }}"></textarea>
-        </div>
-        {% endif %}
         <div class="add-watch-option-group" id="quick-watch-processor-type">
             {{ render_simple_field(form.processor) }}
         </div>

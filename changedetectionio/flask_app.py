@@ -883,12 +883,6 @@ def changedetection_app(config=None, datastore_o=None):
     )
 
     @app.context_processor
-    def inject_llm_features_disabled():
-        from changedetectionio.llm.evaluator import is_llm_features_disabled
-
-        return dict(llm_features_disabled=is_llm_features_disabled())
-
-    @app.context_processor
     def inject_sidebar_items():
         # Links plugins add to the left sidebar (register_sidebar_items hook), see sidebar-nav.html
         from changedetectionio.pluggy_interface import collect_sidebar_items
@@ -945,13 +939,6 @@ def changedetection_app(config=None, datastore_o=None):
                 return None
             # API routes - use their own auth mechanism (@auth.check_token)
             elif request.path.startswith('/api/'):
-                return None
-            # MCP server - its own access token (blueprint/mcp/__init__.py)
-            elif request.blueprint == 'mcp':
-                return None
-            # MCP OAuth - discovery and the token endpoint are called by the assistant's server, not a browser with a
-            # session; the authorize endpoint is the one that needs the login (blueprint/mcp/oauth)
-            elif request.blueprint == 'mcp_oauth' and request.endpoint != 'mcp_oauth.authorize':
                 return None
             else:
                 return login_manager.unauthorized()
@@ -1456,23 +1443,6 @@ def changedetection_app(config=None, datastore_o=None):
         )
     )
 
-    # MCP server for AI assistants, JSON-RPC with its own access token, so no CSRF token.
-    # Not registered at all with LLM_FEATURES_DISABLED or DISABLE_MCP=true.
-    import changedetectionio.blueprint.mcp as mcp
-
-    if not mcp.is_mcp_disabled():
-        mcp_blueprint = mcp.construct_blueprint(datastore, update_q)
-        csrf.exempt(mcp_blueprint)
-        # /mcp/v1 versions our tool contract (names, arguments, results), not the MCP protocol, which is negotiated
-        # per session. Additive changes stay in v1; only a breaking change would get a /mcp/v2.
-        app.register_blueprint(mcp_blueprint, url_prefix='/mcp/v1')
-        # OAuth sign-in for it (blueprint/mcp/oauth): /.well-known/oauth-* and /oauth/*, 404 unless offered. Only the
-        # routes register here, nothing of Authlib loads until a sign-in happens
-        import changedetectionio.blueprint.mcp.oauth as mcp_oauth
-        app.register_blueprint(mcp_oauth.construct_blueprint(datastore))
-        # Called by the assistant's server, not from a page with a form; /oauth/authorize keeps its CSRF token
-        csrf.exempt('changedetectionio.blueprint.mcp.oauth.token')
-        csrf.exempt('changedetectionio.blueprint.mcp.oauth.register')
 
 
     import changedetectionio.blueprint.watchlist as watchlist

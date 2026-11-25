@@ -15,7 +15,7 @@ import sys
 import time
 
 # Allow alphanumerics, space, and a small set of punctuation that appears in legitimate
-# status strings ("Querying AI/LLM (intent)..", "Fetching..."). Anything that could
+# status strings ("Fetching...", "Processing..."). Anything that could
 # be HTML-active (<, >, &, ", ', =, ;, {, }, `, \) is stripped.
 _MINITEXT_STATUS_SAFE_RE = re.compile(r'[^A-Za-z0-9 ().,/:\-]')
 _MINITEXT_STATUS_MAX_LEN = 80
@@ -31,7 +31,7 @@ DEFER_SLEEP_TIME_ALREADY_QUEUED = 0.3 if IN_PYTEST else 10.0
 
 def set_watch_minitext_status(watch, status):
     """
-    Set a transient status line for a watch (e.g. "Fetching...", "Querying AI/LLM..").
+    Set a transient status line for a watch (e.g. "Fetching...").
 
     Writes to watch['__check_status'] so a client reloading the page can render the
     last known status, and fires the realtime signal so already-connected clients
@@ -465,107 +465,6 @@ async def async_update_worker(worker_id, q, notification_q, app, datastore, exec
                         # Reset the edited flag BEFORE update_watch (which calls watch.update() and would set it again)
                         watch.reset_watch_edited_flag()
 
-                        # LLM evaluation — intent filtering + change summary
-                        update_obj['_llm_result'] = None
-                        update_obj['_llm_intent'] = ''
-                        update_obj['_llm_change_summary'] = ''
-                        # skip_check: when budget exceeded, don't run LLM or the check.
-                        # Also gated on llm_enabled — a disabled LLM can't be spending tokens,
-                        # so the budget enforcement shouldn't suppress changes when the user
-                        # has explicitly switched LLM off.
-                        from changedetectionio.llm.evaluator import is_llm_features_disabled as _is_llm_features_disabled, get_llm_settings as _get_llm_settings
-                        _llm_settings = _get_llm_settings(datastore)
-                        _llm_master_enabled = _llm_settings.enabled and not _is_llm_features_disabled()
-                        _llm_budget_action = _llm_settings.budget_action
-                        if _llm_master_enabled and _llm_budget_action == 'skip_check':
-                            from changedetectionio.llm.evaluator import is_global_token_budget_exceeded
-                            if is_global_token_budget_exceeded(datastore):
-                                logger.info(f"LLM monthly budget exceeded — skipping check for {uuid} (budget_action=skip_check)")
-                                changed_detected = False
-
-                        # Only run AI intent/summary when there's a PREVIOUS snapshot to diff
-                        # against. On the very first check history_n is 0 (the new snapshot is
-                        # saved further below), so there's no "change" to describe — running the
-                        # LLM here would summarise the whole page as if it just changed (e.g.
-                        # "price updated to 860" on first sight). Mirrors the notification gate
-                        # (which only fires at history_n >= 2).
-                        if changed_detected and watch.history_n >= 1:
-                            try:
-                                from changedetectionio.llm.evaluator import (
-                                    evaluate_change, llm_enabled_for_watch, resolve_intent,
-                                    resolve_llm_field, summarise_change, _runtime_llm_config,
-                                )
-                                # Per-watch (or group-wide) AI on/off — #4204. Checked before
-                                # any diff work so a switched-off watch costs nothing.
-                                _llm_on, _llm_on_source = llm_enabled_for_watch(watch, datastore)
-                                if not _llm_on:
-                                    logger.debug(f"LLM disabled for {uuid} (by {_llm_on_source}) — skipping AI intent/summary")
-                                # _runtime_llm_config returns None (and logs a debug skip
-                                # message) when the master 'llm_enabled' toggle is off, so
-                                # the whole block — diff computation, status minitext, and
-                                # the two executor dispatches — is skipped, not just the
-                                # inner LLM lookups.
-                                _llm_cfg = _runtime_llm_config(datastore) if _llm_on else None
-                                if _llm_cfg:
-                                    # Compute unified diff once — used by both intent and summary
-                                    _watch_dates = list(watch.history.keys())
-                                    # Capture from_version before new snapshot is added
-                                    _llm_from_version = _watch_dates[-1] if _watch_dates else None
-                                    if _watch_dates:
-                                        _prev_text = watch.get_history_snapshot(timestamp=_watch_dates[-1]) or ''
-                                        from difflib import unified_diff as _unified_diff
-                                        _diff_lines = list(_unified_diff(
-                                            _prev_text.splitlines(keepends=True),
-                                            contents.splitlines(keepends=True),
-                                            lineterm='',
-                                            n=3
-                                        ))
-                                        _diff_text = ''.join(_diff_lines) if _diff_lines else contents
-                                    else:
-                                        _diff_text = contents
-
-                                    # Step 1: AI Change Intent — may suppress notification
-                                    _llm_intent, _llm_intent_source = resolve_intent(watch, datastore)
-                                    if _llm_intent:
-                                        set_watch_minitext_status(watch, "AI/LLM (rules)..")
-                                        _llm_result = await loop.run_in_executor(
-                                            executor,
-                                            lambda diff=_diff_text, snap=contents: evaluate_change(
-                                                watch, datastore, diff=diff, current_snapshot=snap
-                                            )
-                                        )
-                                        update_obj['_llm_result'] = _llm_result
-                                        update_obj['_llm_intent'] = _llm_intent
-
-                                        if _llm_result and not _llm_result.get('important', True):
-                                            changed_detected = False
-                                            logger.info(
-                                                f"LLM filtered out change for {uuid} "
-                                                f"(intent from {_llm_intent_source}): "
-                                                f"{_llm_result.get('summary', '')[:80]}"
-                                            )
-
-                                    # Step 2: AI Change Summary — only compute it when a notification
-                                    # is actually going to be sent, because that's the only place
-                                    # the worker needs it (it fills {{diff}}/{{llm_summary}} in the
-                                    # notification body). The watch-list / diff-page "Summary" button
-                                    # computes it on demand via the diff_llm_summary AJAX endpoint, so
-                                    # we deliberately do NOT pre-compute it here just for the UI —
-                                    # that would spend tokens on every change for a summary nobody
-                                    # may ever look at.
-                                    from changedetectionio.notification_service import watch_will_send_content_changed_notification
-                                    if changed_detected and watch_will_send_content_changed_notification(datastore, watch):
-                                        set_watch_minitext_status(watch, "AI/LLM (summary)..")
-                                        _change_summary = await loop.run_in_executor(
-                                            executor,
-                                            lambda diff=_diff_text, snap=contents: summarise_change(
-                                                watch, datastore, diff=diff, current_snapshot=snap
-                                            )
-                                        )
-                                        if _change_summary:
-                                            update_obj['_llm_change_summary'] = _change_summary
-                            except Exception as e:
-                                logger.warning(f"LLM evaluation error for {uuid}: {e}")
 
                         datastore.update_watch(uuid=uuid, update_obj=update_obj)
 
@@ -594,34 +493,6 @@ async def async_update_worker(worker_id, q, notification_q, app, datastore, exec
                                                     timestamp=int(fetch_start_time),
                                                     snapshot_id=update_obj.get('previous_md5', 'none'))
 
-                            # Save AI summary file now that the new snapshot is committed —
-                            # watch.history.keys()[-1] now reflects the just-saved version,
-                            # so the cache filename matches what the UI will later look up.
-                            # Cache key must use build_summary_cache_prompt() with UI defaults so
-                            # the worker write and the UI read hash to the same prompt_hash.
-                            if update_obj.get('_llm_change_summary') and _llm_from_version:
-                                try:
-                                    from changedetectionio.llm.evaluator import (
-                                        get_effective_summary_prompt, build_summary_cache_prompt,
-                                    )
-                                    _llm_to_version = list(watch.history.keys())[-1]
-                                    from changedetectionio.llm.evaluator import get_llm_settings as _get_llm_settings_inner
-                                    _ls = _get_llm_settings_inner(datastore)
-                                    _llm_max_summary_tokens = _ls.max_summary_tokens
-                                    _llm_model = _ls.model
-                                    _llm_cache_prompt = build_summary_cache_prompt(
-                                        effective_prompt=get_effective_summary_prompt(watch, datastore),
-                                        max_summary_tokens=_llm_max_summary_tokens,
-                                        model=_llm_model,
-                                    )
-                                    watch.save_llm_diff_summary(
-                                        update_obj['_llm_change_summary'],
-                                        _llm_from_version,
-                                        _llm_to_version,
-                                        prompt=_llm_cache_prompt,
-                                    )
-                                except Exception as _fe:
-                                    logger.warning(f"Could not write change-summary file for {uuid}: {_fe}")
 
                             empty_pages_are_a_change = datastore.data['settings']['application'].get('empty_pages_are_a_change', False)
                             if update_handler.fetcher.content or (not update_handler.fetcher.content and empty_pages_are_a_change):

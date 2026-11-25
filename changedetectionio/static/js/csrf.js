@@ -7,8 +7,7 @@
 // block always runs BEFORE one registered here - and any POST it fires would go out with no
 // token and come back "400 The CSRF token is missing".
 //
-// That is exactly what happened to the AI summary on /diff once its start call became a POST
-// (#4467): diff.html's inline $(function(){...}) calls llmSummary.fetch() immediately.
+// (#4467): an inline $(function(){...}) in a page template can fire an AJAX POST immediately.
 //
 // $.ajaxSetup needs no DOM, so doing it now closes the window entirely - deferred scripts all
 // run before DOMContentLoaded, so the setup is in place before any ready handler can fire.

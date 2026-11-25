@@ -114,24 +114,6 @@
                 <td><code>{{ '{{triggered_text}}' }}</code></td>
                 <td>{{ _('Text that tripped the trigger from filters') }}</td>
             </tr>
-            {% if not llm_features_disabled and settings_application and settings_application.get('llm', {}).get('model') %}
-            <tr>
-                <td><code>{{ '{{diff}}' }}</code> <small style="opacity:0.6">{{ _('(upgraded)') }}</small></td>
-                <td>{{ _('When AI Change Summary is configured, contains the AI-generated description instead of the raw diff. Falls back to raw diff when not configured.') }}</td>
-            </tr>
-            <tr>
-                <td><code>{{ '{{raw_diff}}' }}</code></td>
-                <td>{{ _('Always the raw +/- diff, regardless of AI Change Summary setting.') }}</td>
-            </tr>
-            <tr>
-                <td><code>{{ '{{llm_summary}}' }}</code></td>
-                <td>{{ _('The AI Change Summary text (same as the upgraded {{diff}} — explicit reference).') }}</td>
-            </tr>
-            <tr>
-                <td><code>{{ '{{llm_intent}}' }}</code></td>
-                <td>{{ _('The AI Change Intent that was evaluated.') }}</td>
-            </tr>
-            {% endif %}
                 {% if extra_notification_token_placeholder_info %}
                     {% for token in extra_notification_token_placeholder_info %}
                         <tr>

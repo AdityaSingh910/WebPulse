@@ -297,7 +297,7 @@ class NotificationContextData(dict):
             'diff_changed_from': FormattableExtract('', '', extract_fn=lambda x: x),
             'diff_changed_to': FormattableExtract('', '', extract_fn=lambda x: x),
             'diff_url': None,
-            # Always the raw +/- diff regardless of LLM summary override (populated in handler.py from {{diff}})
+            # Alias of {{diff}} (populated in handler.py)
             'raw_diff': FormattableDiff('', ''),
             'markup_text_links_to_html_links': False, # If automatic conversion of plaintext to HTML should happen
             # Safe-empty default so restock tokens ({{ restock.price }} etc.) are a valid,
@@ -311,8 +311,6 @@ class NotificationContextData(dict):
             'timestamp_from': None,
             'timestamp_to': None,
             'triggered_text': None,
-            'llm_summary': None,     # AI plain-English summary of what changed (requires AI intent to be configured)
-            'llm_intent': None,      # The intent that was evaluated (watch-level or inherited from tag)
             'uuid': 'XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX',  # Converted to 'watch_uuid' in create_notification_parameters
             'watch_mime_type': None,
             'watch_tag': None,
@@ -537,11 +535,6 @@ class NotificationService:
             for sender in senders:
                 n_object = NotificationContextData()
                 n_object.update(sender)
-
-                # Attach LLM results so notification tokens render correctly
-                n_object['_llm_result'] = watch.get('_llm_result')
-                n_object['_llm_intent'] = watch.get('_llm_intent', '')
-                n_object['_llm_change_summary'] = watch.get('_llm_change_summary', '')
 
                 self.queue_notification_for_watch(n_object=n_object, watch=watch)
 

@@ -46,10 +46,6 @@ class model(EntityPersistenceMixin, watch_base):
         super(model, self).__init__(*arg, **kw)
 
         self['overrides_watch'] = kw.get('default', {}).get('overrides_watch')
-        # Ternary on a tag, unlike the plain bool on a watch: None ("leave it to each watch")
-        # is the default, so a group never touches its watches' AI until explicitly set.
-        # See llm/evaluator.py:tag_llm_decision().
-        self['llm_backend_profile'] = kw.get('default', {}).get('llm_backend_profile', None)
         self['url_match_pattern'] = kw.get('default', {}).get('url_match_pattern', '')
         # 'fallback' is how groups have always behaved, see notification_service.notification_senders()
         self['notification_group_mode'] = kw.get('default', {}).get('notification_group_mode', 'fallback')

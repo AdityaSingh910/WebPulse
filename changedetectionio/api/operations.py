@@ -1,5 +1,5 @@
 """
-Watch and tag operations shared by the REST API and the MCP server, so both validate the same way and give the
+Watch and tag operations used by the REST API (originally shared with the MCP server), so they validate the same way and give the
 same answers. Each raises ApiError(message, status) with the REST API's message and HTTP status.
 """
 import copy
@@ -43,7 +43,7 @@ def validate_against_spec(data, schema_name):
     """Check values (types, lengths, list sizes, enums, patterns) against the API spec. Raises ApiError listing them.
 
     The REST API also checks request bodies with openapi-core; doing it here means every way into a watch
-    (REST, MCP, anything later) gets the same checks.
+    (REST, anything later) gets the same checks.
     """
     errors = sorted(_spec_validator(schema_name).iter_errors(data), key=lambda e: [str(p) for p in e.path])
     if errors:

@@ -9,8 +9,7 @@ $(document).ready(function () {
 
     $('.click-to-copy').each(function () {
         var $el = $(this);
-        var $block = $el.closest('.mcp-snippet');
-        var $box = $block.length ? $block : $el.wrap('<span class="click-to-copy-inline"></span>').parent();
+        var $box = $el.wrap('<span class="click-to-copy-inline"></span>').parent();
         var $hint = $('<span class="click-to-copy-hint" aria-hidden="true"></span>').appendTo($box);
 
         function label(copied) {

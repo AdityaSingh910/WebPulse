@@ -545,9 +545,6 @@ body.blueprint-watchlist {
     margin-bottom: 0 !important;
   }
 
-  #quick-watch-llm-intent {
-    margin-top: $common-gap;
-  }
 
   #quick-watch-processor-type {
     span.label {
@@ -606,14 +603,12 @@ body.blueprint-watchlist {
     }
   }
 
-  // Reveal the "intent" + "processor type" options only once a URL has been typed
+  // Reveal the "processor type" option only once a URL has been typed
   // — pure CSS, no JS. :placeholder-shown is true while the box is empty (the
   // placeholder is visible); :has() lets the form react to the nested #url input.
-  #quick-watch-llm-intent,
   #quick-watch-processor-type {
     display: none;
   }
-  #new-watch-form:has(#url:not(:placeholder-shown)) #quick-watch-llm-intent,
   #new-watch-form:has(#url:not(:placeholder-shown)) #quick-watch-processor-type {
     display: block;
   }

@@ -161,14 +161,7 @@
   margin-bottom: 0.5rem;
 }
 
-// ── Watchlist: restock rows keep the "History" button even in AI mode ──
-// (AI mode swaps History->Summary for LLM watches; restock has its own graph roll-down instead.)
-html[data-ai-mode="true"] body.llm-configured tr.processor-restock_diff {
-  .btn-label-history { display: inline; }
-  .btn-label-summary { display: none; }
-}
-
-// ── Watchlist: inline restock graph roll-down (mirrors .ai-inline-summary-row, teal/green) ──
+// ── Watchlist: inline restock graph roll-down (teal/green) ──
 .restock-inline-row {
   td {
     white-space: normal !important;

@@ -70,27 +70,10 @@
                     </div>
 {%- endif -%}
                     <div class="add-watch-option-group" id="by-element-toggle-group">
-                        {%- if llm_configured -%}
-                        <label class="pure-checkbox" for="by-element-toggle">
-                            <input type="checkbox" id="by-element-toggle"> {{ _('Select by element') }}
-                        </label>
-                        {%- endif -%}
-                        {# No LLM intent available? Then narrowing by element is the only thing this
-                           page can do - selection is always on, so nothing is labelled or offered
-                           here, just the hint on how to use the preview. #}
+                        {# Narrowing by element is the only thing this page can do - selection is always
+                           on, so nothing is labelled or offered here, just the hint on how to use the preview. #}
                         <a id="clear-selector" class="pure-button button-secondary button-xsmall" style="display: none;">{{ _('Clear selection') }}</a>
                     </div>
-
-                    {% if llm_configured %}
-                    <div class="add-watch-option-group" id="quick-watch-llm-intent">
-                        <label for="quick_watch_llm_intent"><strong>{{ _('What matters — when to notify me') }}</strong></label>
-                        <textarea name="llm_intent"
-                                  id="quick_watch_llm_intent"
-                                  rows="4"
-                                  class="pure-input-1"
-                                  placeholder="{{ _('e.g. Notify me when products go in/out of stock, lead times change by more than a week, or new product variants appear. Skip review additions.') }}"></textarea>
-                    </div>
-                    {% endif %}
 
                     <div class="add-watch-option-group" id="watch-group-tag">
                         {{ render_field(form.tags, value=active_tag_title, placeholder=_("Watch group / tag"), class="transparent-field") }}

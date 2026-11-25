@@ -5,14 +5,6 @@ from wtforms.widgets.core import TimeInput
 from flask_babel import gettext, lazy_gettext as _l, lazy_pgettext
 
 from changedetectionio.blueprint.menu_modes import MENU_SIDEBAR_ACTIONMODES, MENU_SIDEBAR_ACTIONMODES_DEFAULT
-from changedetectionio.llm.ui_strings import LLM_INTENT_WATCH_PLACEHOLDER
-from changedetectionio.llm.evaluator import (
-    DEFAULT_CHANGE_SUMMARY_PROMPT,
-    LLM_DEFAULT_MAX_SUMMARY_TOKENS,
-    LLM_DEFAULT_THINKING_BUDGET,
-    LLM_PROMPT_MODE_APPEND,
-    LLM_PROMPT_MODE_REPLACE,
-)
 from changedetectionio.conditions.form import ConditionFormRow
 from changedetectionio.notification_service import NotificationContextData
 from changedetectionio.strtobool import strtobool
@@ -627,17 +619,6 @@ def validate_url(test_url):
         raise ValidationError('Watch protocol is not permitted or invalid URL format')
 
 
-class validateLLMApiBaseSafe(object):
-    """Block private/loopback/reserved api_base values (SSRF) unless the operator
-    has opted in via ALLOW_IANA_RESTRICTED_ADDRESSES=true."""
-
-    def __call__(self, form, field):
-        from changedetectionio.validate_url import is_llm_api_base_safe
-        ok, reason = is_llm_api_base_safe(field.data)
-        if not ok:
-            raise ValidationError(reason)
-
-
 class ValidateSinglePythonRegexString(object):
     def __init__(self, message=None):
         self.message = message
@@ -971,25 +952,6 @@ class processor_text_json_diff_form(commonSettingsForm, commonNotificationSettin
 
     time_between_check_use_default = BooleanField(_l('Use global settings for time between check and scheduler.'), default=False)
 
-    llm_intent = TextAreaField(_l('AI Change Intent - Notify me when..'), validators=[validators.Optional(), validators.Length(max=2000)],
-                               render_kw={"rows": "5", "placeholder": LLM_INTENT_WATCH_PLACEHOLDER})
-
-    llm_change_summary = TextAreaField(_l('AI Change Summary'), validators=[validators.Optional(), validators.Length(max=2000)],
-                               render_kw={"rows": "5", "placeholder": DEFAULT_CHANGE_SUMMARY_PROMPT},
-                               default='')
-
-    llm_change_summary_mode = RadioField(
-        _l('Change Summary prompt - Append or Replace the default?'),
-        choices=[
-            (LLM_PROMPT_MODE_REPLACE, _l('Replace the inherited prompt')),
-            (LLM_PROMPT_MODE_APPEND,  _l('Append to the inherited prompt')),
-        ],
-        default=LLM_PROMPT_MODE_REPLACE,
-    )
-    # @NOTE! In the near future you should be able to select which LLM profile *OR* "off"/None for this watch/group
-    #        For now we use the 'future' field naming but keep the functionality simple.
-    llm_backend_profile = BooleanField(_l('AI enabled for this watch?'), default=True)
-
     include_filters = StringListField(_l('CSS/JSONPath/JQ/XPath Filters'), [ValidateCSSJSONXPATHInput()], default='')
 
     subtractive_selectors = StringListField(_l('Remove elements'), [ValidateCSSJSONXPATHInput(allow_json=False)])
@@ -1203,178 +1165,6 @@ class globalSettingsApplicationForm(commonSettingsForm):
     ui = FormField(globalSettingsApplicationUIForm)
 
 
-class globalSettingsLLMForm(Form):
-    """
-    LLM / AI provider settings — stored under datastore['settings']['application']['llm'].
-
-    Uses litellm under the hood, so the model string encodes both the provider and model.
-    No separate provider dropdown needed — litellm routes automatically:
-      gpt-4o-mini                           → OpenAI
-      claude-3-5-haiku-20251001             → Anthropic
-      ollama/llama3.2                       → Ollama
-      openrouter/google/gemma-3-12b-it:free → OpenRouter (free tier)
-      gemini/gemini-2.0-flash               → Google Gemini
-      azure/gpt-4o                          → Azure OpenAI
-    """
-    model = StringField(
-        _l('Model'),
-        validators=[validators.Optional()],
-        render_kw={"placeholder": "gpt-4o-mini", "style": "width: 24em;"},
-    )
-    api_key = PasswordField(
-        _l('API Key'),
-        validators=[validators.Optional()],
-        render_kw={
-            # NOT "off": Chrome deliberately ignores autocomplete="off" on type=password,
-            # so the browser's saved site password was being prefilled here. This field
-            # renders blank precisely so that submitting it untouched PRESERVES the stored
-            # key - a prefilled value therefore silently overwrote a working API key on the
-            # next Save. "new-password" is the value Chrome honours; the data-* attributes
-            # ask 1Password and LastPass to keep out of it too.
-            "autocomplete": "new-password",
-            "data-1p-ignore": "true",
-            "data-lpignore": "true",
-            "data-form-type": "other",
-            # Belt and braces, for when no key is stored yet and the field is editable
-            # (once one IS stored the template disables it outright). Chrome will not
-            # autofill a readonly input, and global-settings.js drops the attribute the
-            # moment the field is focused or clicked. readonly rather than disabled here,
-            # because a disabled input is not submitted and the key could never be set.
-            "readonly": True,
-            "data-unlock-on-interact": "1",
-            "style": "width: 24em;",
-        },
-    )
-    api_base = StringField(
-        _l('API Base URL'),
-        validators=[validators.Optional(), validateLLMApiBaseSafe()],
-        render_kw={
-            "placeholder": "http://localhost:11434  (Ollama / custom endpoints only)",
-            "style": "width: 24em;",
-        },
-    )
-    # Persisted by the Provider dropdown JS — lets the backend distinguish a self-hosted
-    # OpenAI-compatible endpoint (vLLM, LM Studio, llama.cpp) from cloud OpenAI, so we can
-    # apply reasoning-friendly token caps only when the user opted in.
-    provider_kind = HiddenField(
-        validators=[validators.Optional()],
-        default='',
-    )
-    # Multiplier applied to LLM max_tokens caps when provider_kind is 'ollama' or
-    # 'openai_compatible' — endpoints that commonly serve reasoning models (Qwen3,
-    # DeepSeek-R1, Gemma 3, etc.) which emit chain-of-thought into
-    # message.reasoning_content before the final answer lands in message.content.
-    # Cloud providers with non-reasoning defaults (OpenAI, Anthropic, Gemini,
-    # OpenRouter) stay on the original tight caps so existing users see no
-    # behavior or cost change. Users on paid Ollama / openai_compatible endpoints
-    # who care about cost can dial this down to 1x.
-    local_token_multiplier = IntegerField(
-        _l('Token multiplier for local reasoning models'),
-        validators=[validators.Optional(), validators.NumberRange(min=1, max=20)],
-        default=5,
-        render_kw={"placeholder": "5", "style": "width: 6em;"},
-    )
-    # Ollama / OpenAI-compatible endpoints only, off by default so the server's own thinking default applies (#4638)
-    local_thinking_off = BooleanField(
-        _l('Switch thinking off'),
-        default=False,
-    )
-    change_summary_default = TextAreaField(
-        _l('Default AI Change Summary prompt'),
-        validators=[validators.Optional(), validators.Length(max=2000)],
-        render_kw={
-            "rows": "12",
-            "placeholder": DEFAULT_CHANGE_SUMMARY_PROMPT,
-            "style": "width: 100%; ",
-        },
-        default='',
-    )
-    max_tokens_per_count_period = IntegerField(
-        _l('Max tokens per watch per period'),
-        validators=[validators.Optional(), validators.NumberRange(min=0)],
-        default=0,
-        render_kw={
-            "placeholder": "0 = unlimited",
-            "style": "width: 8em;",
-        },
-    )
-    token_budget_month = IntegerField(
-        _l('Monthly token budget'),
-        validators=[validators.Optional(), validators.NumberRange(min=0)],
-        default=0,
-        render_kw={"style": "width: 10em;"},
-    )
-    max_input_chars = IntegerField(
-        _l('Max input characters'),
-        validators=[validators.Optional(), validators.NumberRange(min=1)],
-        default=100000,
-        render_kw={
-            "placeholder": "100000",
-            "style": "width: 10em;",
-        },
-    )
-    # Master on/off switch for ALL LLM lookups at runtime. When False, every entry point
-    # in evaluator.py (and the restock fallback) short-circuits with a logger.debug
-    # message — even if a provider+model is still configured. Saved config and the
-    # "configured" badge remain visible so the user can toggle back on without re-entering.
-    enabled = BooleanField(
-        _l('Enable AI / LLM features'),
-        default=True,
-    )
-    override_diff_with_summary = BooleanField(
-        _l('Replace {{diff}} notification token with AI summary'),
-        default=True,
-    )
-    restock_use_fallback_extract = BooleanField(
-        _l('Use LLM as a fallback for extracting price and restock info'),
-        default=True,
-    )
-    debug = BooleanField(
-        _l('Enable LLM debug logging'),
-        default=False,
-    )
-    thinking_budget = SelectField(
-        _l('AI thinking budget (tokens)'),
-        choices=[
-            ('0',    _l('Off (no thinking)')),
-            ('100',  '100'),
-            ('500',  '500'),
-            ('2000', '2000'),
-        ],
-        default=str(LLM_DEFAULT_THINKING_BUDGET),
-        validators=[validators.Optional()],
-    )
-    max_summary_tokens = SelectField(
-        _l('Max AI summary length (tokens)'),
-        choices=[
-            ('500',   '500'),
-            ('1000',  '1000'),
-            ('3000',  '3000'),
-            ('5000',  '5000'),
-            ('10000', '10000'),
-            ('15000', '15000'),
-        ],
-        default=str(LLM_DEFAULT_MAX_SUMMARY_TOKENS),
-        validators=[validators.Optional()],
-    )
-    budget_action = RadioField(
-        _l('When monthly token budget is reached'),
-        choices=[
-            ('skip_llm',   _l('Skip AI summarisation only (watch still checks)')),
-            ('skip_check', _l('Skip the watch check entirely')),
-        ],
-        default='skip_llm',
-    )
-    watchlist_overview_summary = RadioField(
-        _l('Watchlist "Summary" link compares'),
-        choices=[
-            ('second_last_version', _l('Previous version (second-last vs latest)')),
-            ('since_last_viewed',   _l('Changes since you last viewed the watch')),
-        ],
-        default='second_last_version',
-    )
-
-
 class globalSettingsForm(Form):
     # Define these as FormFields/"sub forms", this way it matches the JSON storage
     # datastore.data['settings']['application']..
@@ -1385,64 +1175,6 @@ class globalSettingsForm(Form):
     requests = FormField(globalSettingsRequestForm)
     application = FormField(globalSettingsApplicationForm)
     save_button = SubmitField(_l('Save'), render_kw={"class": "pure-button pure-button-primary"})
-
-
-class globalLLMSettingsPageForm(Form):
-    """The /settings/llm page. Still stored under datastore['settings']['application']['llm'], the
-    sub-form keeps the `llm-` field prefix so settings/llm/templates/llm-settings_llm.html renders it unchanged."""
-    llm = FormField(globalSettingsLLMForm)
-    save_button = SubmitField(_l('Save'), render_kw={"class": "pure-button pure-button-primary"})
-
-
-def normalise_mcp_public_url(value):
-    """The "Public MCP address" as stored (settings.application.mcp_base_url): no trailing slash, and the instance's
-    address rather than its MCP endpoint when someone pastes .../mcp/v1."""
-    value = (value or '').strip().rstrip('/')
-    if value.endswith('/mcp/v1'):
-        value = value[:-len('/mcp/v1')].rstrip('/')
-    return value
-
-
-def validate_mcp_public_url(form, field):
-    from urllib.parse import urlsplit
-    value = normalise_mcp_public_url(field.data)
-    if not value:
-        return
-    parts = urlsplit(value)
-    if parts.scheme not in ('http', 'https') or not parts.hostname or parts.query or parts.fragment or parts.username:
-        raise ValidationError(_l('Use a full http:// or https:// address, without ?query or #fragment.'))
-
-
-class globalMCPSettingsPageForm(Form):
-    """The /settings/ai/mcp page ("MCP Server" tab), stored in datastore['settings']['application']['mcp_enabled']. The
-    access tokens have their own form, MCPTokenForm."""
-    # Also the switch for the OAuth endpoints once they exist (MCP-config.md, point 3)
-    enabled = BooleanField(_l('Switch on the MCP and OAuth endpoints'), default=False)
-    # Empty for the built-in note (blueprint/mcp INSTRUCTIONS, shown as the placeholder), stored as mcp_note
-    note = TextAreaField(_l('MCP Note'), validators=[validators.Optional(), validators.Length(max=4000)])
-    # Stored as mcp_anonymous_read: a request with no credentials gets read-only access (blueprint/mcp
-    # ANONYMOUS_PERMISSIONS) instead of a 401
-    anonymous_read = BooleanField(_l('Allow read-only access without sign-in'), default=False)
-    # Empty to build it from each request, stored as mcp_base_url (blueprint/mcp/oauth issuer()). Not the notification
-    # Base URL: that one is only for links in notifications
-    public_url = StringField(_l('Public MCP address'), validators=[validators.Optional(), validators.Length(max=500),
-                                                                   validate_mcp_public_url])
-    save_button = SubmitField(_l('Save'), render_kw={"class": "pure-button pure-button-primary"})
-
-
-class MCPTokenForm(Form):
-    """Add or edit one MCP access token (the overlay on the "Access tokens" sub-tab, sent with ajax): its name and its
-    None / Read / Write grid, one perm_<area> field per row (see blueprint/mcp/tools.py)."""
-    name = StringField(_l('Name'), validators=[validators.DataRequired(), validators.Length(max=64)],
-                       render_kw={'placeholder': _l('e.g. Claude Code, laptop'), 'maxlength': 64})
-    perm_monitors = RadioField(_l('Monitors'), default='write', choices=[('none', _l('None')), ('read', _l('Read')), ('write', _l('Write'))])
-    perm_tags = RadioField(_l('Groups (tags)'), default='write', choices=[('none', _l('None')), ('read', _l('Read')), ('write', _l('Write'))])
-    perm_notifications = RadioField(_l('Notifications'), default='read', choices=[('none', _l('None')), ('read', _l('Read')), ('write', _l('Write'))])
-    perm_browser = RadioField(_l('Browser steps & JavaScript'), default='none', choices=[('none', _l('None')), ('write', _l('Write'))])
-    perm_system = RadioField(_l('System info'), default='read', choices=[('none', _l('None')), ('read', _l('Read'))])
-    # The groups (tags) the token is limited to, none ticked for every monitor. Choices are the tags, set by the routes
-    tags = SelectMultipleField(_l('Only these groups'), choices=[], validate_choice=True,
-                               widget=widgets.ListWidget(prefix_label=False), option_widget=widgets.CheckboxInput())
 
 
 class extractDataForm(Form):

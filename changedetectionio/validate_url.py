@@ -320,8 +320,8 @@ def is_fetch_url_allowed(url):
          This step owns no logic of its own: it delegates to is_private_hostname() ->
          is_special_purpose_ip(), which is the single list of refused address classes
          (private, loopback, link-local, reserved, multicast, RFC 6598 CGNAT, ...). Add new
-         ranges there and every fetch path, the notification handlers and the LLM api_base
-         check pick them up together — see GHSA-gwph-fp79-379w, where CGNAT space was missing
+         ranges there and every fetch path and the notification handlers
+         pick them up together — see GHSA-gwph-fp79-379w, where CGNAT space was missing
          from that predicate and so this gate let 100.64.0.0/10 through.
 
     Step 5 performs DNS resolution and therefore blocks. From async code call
@@ -396,45 +396,6 @@ async def validate_fetch_url_async(url):
     ok, reason = await loop.run_in_executor(None, is_fetch_url_allowed, url)
     if not ok:
         raise ValueError(reason)
-
-
-def is_llm_api_base_safe(api_base):
-    """SSRF guard for the LLM `api_base` setting (GHSA-jrxm-qjfh-g54f).
-
-    Returns (ok: bool, reason: str). Empty/None api_base is allowed (cloud providers
-    don't need it). When ALLOW_IANA_RESTRICTED_ADDRESSES=true the check is bypassed
-    so operators can intentionally point at local Ollama / vLLM / LM Studio.
-
-    Call this from EVERY write path that accepts `llm.api_base` from the user —
-    form validation, AJAX endpoints, and any future REST/import endpoint. The
-    existing call sites are forms.py (validateLLMApiBaseSafe) and
-    blueprint/settings/llm/__init__.py (both /models and /test).
-    """
-    import os
-    from changedetectionio.strtobool import strtobool
-    from flask_babel import gettext
-
-    if not api_base or not api_base.strip():
-        return True, ''
-
-    if strtobool(os.getenv('ALLOW_IANA_RESTRICTED_ADDRESSES', 'false')):
-        return True, ''
-
-    api_base = api_base.strip()
-
-    if not is_safe_valid_url(api_base):
-        return False, gettext("API Base URL is not a valid http(s) URL.")
-
-    hostname = urlparse(api_base).hostname
-    if hostname and is_private_hostname(hostname):
-        return False, gettext(
-            "API Base URL resolves to a private, loopback, link-local or reserved "
-            "IP address and was blocked to prevent SSRF. To allow LLM endpoints on private networks "
-            "(e.g. a local Ollama server) set the environment variable "
-            "ALLOW_IANA_RESTRICTED_ADDRESSES=true and restart."
-        )
-
-    return True, ''
 
 
 def is_safe_valid_url(test_url):

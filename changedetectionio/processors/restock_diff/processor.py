@@ -555,26 +555,9 @@ class perform_site_check(difference_detection_processor):
             # Try plugin override - plugins can decide if they support this fetcher
             if fetcher_name:
                 logger.debug(f"Calling extra plugins for getting item price/availability (fetcher: {fetcher_name})")
-                from changedetectionio.llm.evaluator import llm_enabled_for_watch, resolve_intent
-                # AI off for this watch (or for its group) means no intent is handed to the
-                # LLM restock plugin, so it doesn't spend tokens here either — #4204.
-                _llm_on, _ = llm_enabled_for_watch(watch, self.datastore)
-                _llm_intent, _ = resolve_intent(watch, self.datastore) if _llm_on else ('', '')
-                plugin_availability = get_itemprop_availability_from_plugin(self.fetcher.content, fetcher_name, self.fetcher, watch.link, llm_intent=_llm_intent or None)
+                plugin_availability = get_itemprop_availability_from_plugin(self.fetcher.content, fetcher_name, self.fetcher, watch.link)
 
                 if plugin_availability:
-                    # Extract and strip LLM token metadata before using as Restock data
-                    _plugin_tokens = plugin_availability.pop('_tokens', 0)
-                    _plugin_input_tokens = plugin_availability.pop('_input_tokens', 0)
-                    _plugin_output_tokens = plugin_availability.pop('_output_tokens', 0)
-                    _plugin_model = plugin_availability.pop('_model', '')
-
-                    # Update per-watch token counters directly on the watch (same
-                    # pattern as evaluator.py) so they're committed when update_watch runs
-                    if _plugin_tokens:
-                        watch['llm_last_tokens_used'] = _plugin_tokens
-                        watch['llm_tokens_used_cumulative'] = (watch.get('llm_tokens_used_cumulative') or 0) + _plugin_tokens
-
                     # Plugin provided better data, use it
                     plugin_has_price = plugin_availability.get('price') is not None
                     plugin_has_availability = plugin_availability.get('availability') is not None
@@ -613,8 +596,8 @@ class perform_site_check(difference_detection_processor):
         # Something valid in get_itemprop_availability() by scraping metadata ?
         if itemprop_availability.get('price') or itemprop_availability.get('availability'):
             # Store for other usage. Wrap in Restock() so it's ALWAYS a Restock, never a plain
-            # dict: the built-in extruct path returns a Restock, but plugin fallbacks (e.g. the
-            # LLM restock scraper) return a plain dict. A plain dict here later blows up callers
+            # dict: the built-in extruct path returns a Restock, but plugin fallbacks return a
+            # plain dict. A plain dict here later blows up callers
             # that use its helpers, e.g. watch['restock'].get_price_change_percent() on the
             # watchlist (AttributeError -> 500 on the list page).
             update_obj['restock'] = Restock(itemprop_availability)
