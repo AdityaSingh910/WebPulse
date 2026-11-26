@@ -449,8 +449,15 @@ WebPulse is running: http://127.0.0.1:5000, with the backend window titled "WebP
 
 ## 13. Repository and network totals
 
-* **Commit:** see `git log` on branch `simplified`. This audit's commit follows `bb209b8f`; the files changed are
-  listed in `CHANGES.md` → Phase 14.
+* **Commit:** `98b83011` "Phase 14: complete functional audit and real-world data expansion" on branch `simplified`
+  (parent `bb209b8f`). It changes 15 files:
+  * `CHANGES.md`, `README.md`;
+  * `docs/COMPLETE_FUNCTIONAL_AUDIT.md` (new), `docs/COMPLETE_WALKTHROUGH.md`;
+  * `processors/job_listings/{extract,processor,tracker}.py`;
+  * `blueprint/jobs/templates/jobs-detail.html`, `blueprint/demo_lab/__init__.py`, `demo-lab.html`;
+  * `static/js/realtime.js`;
+  * `tests/unit/test_job_listings.py`;
+  * `e2e/fixture_server.py`, `e2e/test_e2e.py`, `e2e/known_windows_unit_failures.txt`.
 * **Audit network use (scripts):** 260 HTTP requests, 128.5 MB of uncompressed bodies. That includes one 50 MB IKEA
   product sitemap and 119 HTTP 404s from board-name probes.
 
