@@ -9,19 +9,6 @@ services.
 
 ![WebPulse dashboard](docs/screenshots/01-dashboard.png)
 
-## Based on changedetection.io
-
-WebPulse is a modified and simplified version of the open-source
-**[changedetection.io](https://github.com/dgtlmoon/changedetection.io)**, by Leigh Morresi and the changedetection.io
-contributors, version 0.70.4, used under the Apache License 2.0.
-
-* [LICENSE](LICENSE) is unchanged.
-* [NOTICE](NOTICE) contains the upstream notice plus an addendum for this project.
-* Every change is recorded in [CHANGES.md](CHANGES.md), and modified files carry a notice at the top.
-* The original README is kept as [README.upstream.md](README.upstream.md).
-* The WebPulse name, logo and interface design are original to this project. WebPulse is not affiliated with or
-  endorsed by the changedetection.io project.
-
 ## Features
 
 The Home page is organised around six things people monitor:
@@ -89,7 +76,7 @@ No history is invented. The earlier "[Sample data]" watches with simulated histo
 ## Tests
 
 ```powershell
-.\e2e\run_unit.ps1               # upstream unit tests + template syntax + dependency/import checks
+.\e2e\run_unit.ps1               # unit tests + template syntax + dependency/import checks
 .\e2e\run_e2e.ps1 -Browser -UI   # 96 end-to-end checks
 ```
 
@@ -105,3 +92,7 @@ The 96 end-to-end checks are:
 The harness starts its own local fixture site and throw-away instances. More detail is in
 [docs/SIMPLIFICATION_REPORT.md](docs/SIMPLIFICATION_REPORT.md). The presentation walkthrough is in
 [docs/PRESENTATION_GUIDE.md](docs/PRESENTATION_GUIDE.md).
+
+## License
+
+Apache License 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
