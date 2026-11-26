@@ -14,7 +14,7 @@ import time
 from urllib.parse import urljoin, urlparse
 
 import requests
-from playwright.sync_api import sync_playwright, expect
+from playwright.sync_api import sync_playwright
 
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 DS, BASE, FIX, WORK = sys.argv[1:5]

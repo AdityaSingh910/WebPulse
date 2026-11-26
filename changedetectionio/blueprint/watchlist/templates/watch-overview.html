@@ -324,7 +324,15 @@ window.watchOverviewI18n = {
             {%- if not watches|length -%}
             <tr>
                 {# TRANSLATORS: FIXME: fragment msgids (#4074) #}
-                <td colspan="{{ cols_required }}" style="text-wrap: wrap;">{{ _('No web page change detection watches configured, please add a URL in the box above, or') }} <a href="{{ url_for('imports.import_page')}}" >{{ _('import a list') }}</a>.</td>
+                {#- WebPulse: the add form is on Home, and a search/filter with no match is not "nothing configured" -#}
+                <td colspan="{{ cols_required }}" style="text-wrap: wrap;">
+                {%- if request.args.get('q') or request.args.get('tag') or (request.args.get('processor') and request.args.get('processor') != 'restock_diff') -%}
+                    {{ _('Nothing matches this search or filter.') }} <a href="{{ url_for('watchlist.index', processor=request.args.get('processor') if request.args.get('processor') == 'restock_diff' else None) }}">{{ _('Show all') }}</a>
+                {%- elif request.args.get('processor') == 'restock_diff' -%}
+                    {{ _('No products yet. On Home, paste a product page address and press “Track product”.') }} <a href="{{ url_for('home.home_page') }}#add">{{ _('Go to Home') }}</a>
+                {%- else -%}
+                    {{ _('Nothing is being monitored yet. On Home, paste a website, product or careers page address.') }} <a href="{{ url_for('home.home_page') }}#add">{{ _('Go to Home') }}</a> {{ _('or') }} <a href="{{ url_for('imports.import_page')}}">{{ _('import a list') }}</a>.
+                {%- endif -%}</td>
             </tr>
             {%- endif -%}
 

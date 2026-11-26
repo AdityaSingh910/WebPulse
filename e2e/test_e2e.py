@@ -246,6 +246,7 @@ def mode_core():
         check('E20', f'No UI elements of removed features ({len(no_ui)} markers)', not leftovers, leftovers or 'clean')
 
     job_uuid = jobs_checks(api, notif)
+    product_edge_checks(api)
 
     json.dump({'text_uuid': text_uuid, 'prod_uuid': prod_uuid, 'tag_uuid': tag_uuid, 'sched_uuid': sched_uuid, 'job_uuid': job_uuid},
               open(STATE_FILE, 'w'))
@@ -413,7 +414,13 @@ def jobs_checks(api, notif):
           f"last_seen-last_checked={last_seen - int(w.get('last_checked') or 0)} counts={[e['active'] for e in st['events']]}")
 
     # new keywords = new starting point, no alert
-    n1 = len(read_log())
+    # (first let the alerts of the previous steps arrive - they are sent asynchronously by the notification thread)
+    n1, t_settle = len(read_log()), time.time()
+    while time.time() - t_settle < 20:
+        time.sleep(2)
+        if len(read_log()) == n1:
+            break
+        n1 = len(read_log())
     tok = _csrf(s, f'{BASE}/jobs/{uuid}')
     before = int(api('GET', f'/watch/{uuid}').json().get('check_count') or 0)
     s.post(f'{BASE}/jobs/{uuid}/keywords', data={'csrf_token': tok, 'job_keywords': 'engineer, administrator'}, timeout=30)
@@ -441,6 +448,36 @@ def jobs_checks(api, notif):
     r = s.get(f'{BASE}/jobs/{uuid}?show=bogus&days=abc', timeout=30)
     check('J17', 'Bad filter values fall back safely', r.status_code == 200, r.status_code)
     return uuid
+
+
+# ---------------- WebPulse reliability: incomplete product data and HTTP errors (Phase 15) ----------------
+def product_edge_checks(api):
+    requests.post(FIX + '/set', params={'price': '999.00', 'stock': 'InStock', 'product_page': 'normal', 'http_status': '200'})
+    r = api('POST', '/watch', json={'url': FIX + '/product.html?edge=1', 'title': 'Edge-case product', 'processor': 'restock_diff',
+                                   'processor_config_restock_diff': {'in_stock_processing': 'all_changes', 'follow_price_changes': True}})
+    u = r.json()['uuid']
+    wait_checked(api, u, 1)
+    st = lambda: api('GET', f'/watch/{u}').json().get('processor_state_restock_diff') or {}
+    hn = lambda: int(api('GET', f'/watch/{u}').json().get('history_n') or 0)
+    requests.post(FIX + '/set', params={'product_page': 'noprice'})
+    _recheck_and_wait(api, u)
+    check('R01', 'A check without a price keeps the last known price (no wipe, no version)', st().get('price') == 999.0 and hn() == 1, st())
+    requests.post(FIX + '/set', params={'product_page': 'normal', 'price': '899.00'})
+    _recheck_and_wait(api, u)
+    check('R02', 'After a missing-price check, 999 -> 899 is still reported as a drop', st().get('price') == 899.0 and st().get('last_price') == 999.0
+          and hn() == 2, st())
+    requests.post(FIX + '/set', params={'product_page': 'nostock'})
+    _recheck_and_wait(api, u)
+    requests.post(FIX + '/set', params={'product_page': 'normal'})
+    _recheck_and_wait(api, u)
+    check('R03', 'A check without stock data is not a stock change (no false out-of-stock / restock versions)', hn() == 2 and st().get('in_stock') is True, st())
+    requests.post(FIX + '/set', params={'http_status': '500'})
+    w = _recheck_and_wait(api, u)
+    requests.post(FIX + '/set', params={'http_status': '200'})
+    check('R04', 'HTTP 500 from the shop: recorded as the error, price and stock kept', '500' in str(w.get('last_error')) and st().get('price') == 899.0
+          and st().get('in_stock') is True and hn() == 2, str(w.get('last_error'))[:80])
+    requests.post(FIX + '/set', params={'price': '449.00', 'stock': 'OutOfStock'})   # restore what the persist mode expects
+    api('PUT', f'/watch/{u}', json={'paused': True})
 
 
 def mode_persist():

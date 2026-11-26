@@ -183,6 +183,7 @@ class fetcher(Fetcher):
         super().__init__(**kwargs)
 
         self.browser_type = os.getenv("PLAYWRIGHT_BROWSER_TYPE", 'chromium').strip('"')
+        self.blocked_private_request = None   # set by the private-address guard (see _install_private_address_guard)
 
         if custom_browser_connection_url:
             self.browser_connection_is_custom = True
@@ -280,6 +281,47 @@ class fetcher(Fetcher):
                     if os.path.exists(har_tmp):
                         os.unlink(har_tmp)
 
+    async def _install_private_address_guard(self, context):
+        """Abort any browser request (navigation, redirect target, script fetch, image...) to a private/reserved
+        address, unless ALLOW_IANA_RESTRICTED_ADDRESSES is set. Results are cached per host for this fetch."""
+        from urllib.parse import urlsplit
+        from changedetectionio.strtobool import strtobool
+        from changedetectionio.validate_url import is_url_private_or_parser_confused
+        if strtobool(os.getenv('ALLOW_IANA_RESTRICTED_ADDRESSES', 'false')):
+            return
+        verdicts = {}
+
+        async def guard(route):
+            url = route.request.url
+            if url.startswith(('http://', 'https://')):
+                parts = urlsplit(url)
+                key = f"{parts.scheme}://{parts.netloc}"
+                if key not in verdicts:
+                    verdicts[key] = await asyncio.to_thread(is_url_private_or_parser_confused, key + '/')
+                if verdicts[key]:
+                    logger.warning(f"Browser request to a private/reserved address blocked: {url[:200]}")
+                    await route.abort('blockedbyclient')
+                    return
+            await route.continue_()
+
+        await context.route('**/*', guard)
+
+        # route() never sees the later hops of a redirect chain (Playwright behaviour), but the 'request' event does.
+        # A redirect into a private address cannot be stopped before it is sent; instead the fetch is failed below
+        # (run() checks self.blocked_private_request) so nothing from it is ever saved.
+        def watch_request(request):
+            url = request.url
+            if url.startswith(('http://', 'https://')) and not self.blocked_private_request:
+                parts = urlsplit(url)
+                key = f"{parts.scheme}://{parts.netloc}"
+                if key not in verdicts:
+                    verdicts[key] = is_url_private_or_parser_confused(key + '/')
+                if verdicts[key]:
+                    self.blocked_private_request = url
+                    logger.warning(f"Browser was redirected to a private/reserved address: {url[:200]} - the fetch will be discarded")
+
+        context.on('request', watch_request)
+
     async def run(self,
                   fetch_favicon=True,
                   current_include_filters=None,
@@ -328,6 +370,11 @@ class fetcher(Fetcher):
                 **har['context_args'],
             )
             har['context'] = context
+
+            # WebPulse (Phase 15): the plain-HTTP fetcher re-checks every redirect hop, but the browser only had its
+            # start URL checked - a page could redirect to, or fetch() from, 127.0.0.1 / 10.x / 169.254.169.254 and that
+            # content ended up in the saved page. Every request the browser makes is now checked the same way.
+            await self._install_private_address_guard(context)
 
             self.page = await context.new_page()
 
@@ -467,6 +514,12 @@ class fetcher(Fetcher):
                 self.content = await self.page.content()
                 await self.page.request_gc()
                 logger.debug(f"Scrape xPath element data in browser done in {time.time() - now:.2f}s")
+
+                if self.blocked_private_request:
+                    # WebPulse SSRF guard: a redirect led the browser to a private/reserved address - keep nothing
+                    self.content, self.xpath_data, self.instock_data = None, None, None
+                    raise Exception(f"Fetch blocked: the page redirected the browser to a private/reserved address "
+                                    f"({self.blocked_private_request[:120]})")
 
 
                 # Bug 3 in Playwright screenshot handling

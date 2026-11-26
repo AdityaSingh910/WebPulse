@@ -7,11 +7,13 @@ GET  /jobs.html             -> a careers page: the job list (#job-list) from sta
                                Each job "Title - Location" is a card with its own link /jobs/<slug of the title>,
                                so changing the location keeps the same job (a "modified" opening)
 GET  /jobs/<slug>           -> the detail page of one job (the "Apply" link)
+GET  /redirect?to=, /fetch-private.html?to= -> SSRF tests only: a 302 / a JavaScript fetch() to another 127.0.0.1 address
 GET  /js.html, /js-product.html -> content / price data that only exists after JavaScript runs
 GET  /slow.html?d=SECONDS&n=ID -> responds after a delay of at most 10 s (used to prove concurrent workers)
 GET  /state.json            -> the current state (read by the WebPulse "Controlled demo" page)
 POST /set?price=..&stock=..&text=..&name=..&jobs=a|b|c&jobs_page=normal|blocked -> change state (known keys only,
-                               bounded values); product_page=broken serves a product page without price data; jobs_page=blocked serves a bot-check page instead of the careers page,
+                               bounded values); product_page=broken|malformed|noprice|nostock serves a product page without data / with broken JSON-LD / without
+                               a price / without stock; http_status=403|404|429|500|503 makes every page answer with that status; jobs_page=blocked serves a bot-check page instead of the careers page,
                                an empty job list shows an explicit "No open positions" message
 POST /reset                 -> back to the default state
 POST /notify                -> notification receiver, appends request bodies to notifications.log
@@ -40,9 +42,10 @@ STATE = os.path.join(WORK, 'state.json')
 LOG = os.path.join(WORK, 'notifications.log')
 DEFAULT_JOBS = ['Backend Engineer (Python) - Bengaluru', 'Data Engineer - Hyderabad', 'Software Engineering Intern - Remote']
 DEFAULT = {'price': '499.00', 'stock': 'InStock', 'text': 'Version one of the page.', 'name': 'Test Headphones',
-           'jobs': '|'.join(DEFAULT_JOBS), 'jobs_page': 'normal', 'product_page': 'normal'}
+           'jobs': '|'.join(DEFAULT_JOBS), 'jobs_page': 'normal', 'product_page': 'normal', 'http_status': '200'}
 JOBS_PAGE_VALUES = {'normal', 'blocked'}
-PRODUCT_PAGE_VALUES = {'normal', 'broken'}
+PRODUCT_PAGE_VALUES = {'normal', 'broken', 'malformed', 'noprice', 'nostock'}
+HTTP_STATUS_VALUES = {'200', '403', '404', '429', '500', '503'}
 STOCK_VALUES = {'InStock', 'OutOfStock', 'PreOrder', 'BackOrder', 'SoldOut', 'LimitedAvailability'}
 MAX_VALUE = 2000
 MAX_DELAY = 10.0
@@ -82,6 +85,8 @@ def valid(key, value):
         return value in JOBS_PAGE_VALUES
     if key == 'product_page':
         return value in PRODUCT_PAGE_VALUES
+    if key == 'http_status':
+        return value in HTTP_STATUS_VALUES
     if key == 'stock':
         return value in STOCK_VALUES
     if key == 'price':
@@ -108,9 +113,33 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         s = load()
         u = urlparse(self.path)
+        # Error-response test mode: every content page answers with this status (429 also sends Retry-After)
+        if s.get('http_status', '200') != '200' and u.path not in ('/state.json',):
+            code = int(s['http_status'])
+            self.send_response(code)
+            if code == 429:
+                self.send_header('Retry-After', '120')
+            body = f"<html><body><h1>HTTP {code}</h1></body></html>".encode()
+            self.send_header('Content-Type', 'text/html; charset=utf-8')
+            self.send_header('Content-Length', str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         q = parse_qs(u.query)
         name = escape(s['name'])
-        if u.path == '/product.html' and s.get('product_page') == 'broken':
+        if u.path == '/product.html' and s.get('product_page') in ('malformed', 'noprice', 'nostock'):
+            mode = s['product_page']
+            offer = {"@type": "Offer", "priceCurrency": "INR"}
+            if mode != 'noprice':
+                offer['price'] = s['price']
+            if mode != 'nostock':
+                offer['availability'] = "https://schema.org/" + s['stock']
+            ld = json.dumps({"@context": "https://schema.org", "@type": "Product", "name": s['name'], "offers": offer})
+            if mode == 'malformed':
+                ld = ld.replace('"offers":', '"offers" ').replace('}', '', 1)   # broken JSON, as some real shops publish
+            self._send(f"<html><head><title>{name}</title><script type='application/ld+json'>{ld}</script></head>"
+                       f"<body><h1>{name}</h1><div><p>Unclosed <b>markup<i> and a stray </span> tag</body></html>")
+        elif u.path == '/product.html' and s.get('product_page') == 'broken':
             # A shop page that loads (HTTP 200) but carries no price/stock data - e.g. a redesign or a holding page
             self._send(f"<html><head><title>{name}</title></head><body><h1>{name}</h1><p>Temporarily unavailable.</p></body></html>")
         elif u.path == '/product.html':
@@ -137,6 +166,23 @@ class Handler(BaseHTTPRequestHandler):
                        f"<h2>Open positions</h2><ul id='job-list'>{items}</ul>"
                        + ("" if items else "<p class='no-openings'>No open positions right now - please check back soon.</p>")
                        + f"<footer>Page generated at {time.strftime('%H:%M:%S')}</footer></body></html>")
+        elif u.path == '/redirect':
+            # SSRF test only: an "open redirect" that sends the fetcher to another 127.0.0.1 address
+            to = q.get('to', [''])[0]
+            if not re.match(r'^http://127\.0\.0\.1:\d{2,5}/[\w./?=&-]*$', to):
+                return self._404()
+            self.send_response(302)
+            self.send_header('Location', to)
+            self.send_header('Content-Length', '0')
+            self.end_headers()
+        elif u.path == '/fetch-private.html':
+            # SSRF test only: a page whose JavaScript reads another 127.0.0.1 address and writes it into the page
+            to = q.get('to', [''])[0]
+            if not re.match(r'^http://127\.0\.0\.1:\d{2,5}/[\w./?=&-]*$', to):
+                return self._404()
+            self._send("<html><body><div id='out'>waiting</div><script>fetch(" + json.dumps(to) + ").then(r => r.text())"
+                       ".then(t => document.getElementById('out').textContent = 'LEAKED: ' + t)"
+                       ".catch(e => document.getElementById('out').textContent = 'blocked: ' + e);</script></body></html>")
         elif u.path.startswith('/jobs/'):
             job = next((j for j in parse_jobs(s['jobs']) if j[0] == u.path[len('/jobs/'):]), None)
             if not job:

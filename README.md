@@ -69,6 +69,14 @@ checklist) is [docs/COMPLETE_WALKTHROUGH.md](docs/COMPLETE_WALKTHROUGH.md). The 
 re-verified and the inventory of real websites, products and career pages, is
 [docs/COMPLETE_FUNCTIONAL_AUDIT.md](docs/COMPLETE_FUNCTIONAL_AUDIT.md).
 
+Final documentation:
+* [Final project readiness](docs/FINAL_PROJECT_READINESS.md);
+* [System architecture](docs/SYSTEM_ARCHITECTURE.md);
+* [Installation guide](docs/INSTALLATION_GUIDE.md);
+* [Demonstration script](docs/DEMONSTRATION_SCRIPT.md);
+* [Known limitations](docs/KNOWN_LIMITATIONS.md);
+* [Original contributions](docs/ORIGINAL_CONTRIBUTIONS.md).
+
 ### Real websites and controlled demonstrations
 
 | In the list | What it is |

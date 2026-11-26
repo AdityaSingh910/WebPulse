@@ -67,7 +67,9 @@ class fetcher(Fetcher):
         from requests.adapters import HTTPAdapter
         from urllib3.util.retry import Retry
 
-        max_retries = int(os.getenv("REQUESTS_RETRY_MAX_COUNT", "6"))
+        # WebPulse: an environment variable that is defined but empty must not make every fetch fail
+        _retries = (os.getenv("REQUESTS_RETRY_MAX_COUNT") or "").strip()
+        max_retries = int(_retries) if _retries.isdigit() else 6
         retry_strategy = Retry(
             total=max_retries,
             connect=max_retries,  # Retry connection timeouts

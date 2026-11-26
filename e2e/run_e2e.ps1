@@ -9,7 +9,7 @@
 #
 # Usage:  .\e2e\run_e2e.ps1 [-Python <path to python.exe>] [-Label name] [-ExpectRemoved "/a,/b"]
 param(
-    [string]$Python = "C:\Users\adity\venvs\cdio-simplified\Scripts\python.exe",
+    [string]$Python = '',                 # default: <project>\.venv, then %USERPROFILE%\venvs\cdio-simplified
     [string]$Label = "run",
     [string]$ExpectRemoved = "",
     [string]$ExpectNoUi = "",
@@ -23,6 +23,11 @@ param(
     [int]$UiAppPort = 5058
 )
 $ErrorActionPreference = 'Stop'
+if (-not $Python) {
+    $Python = @((Join-Path (Split-Path -Parent $PSScriptRoot) '.venv\Scripts\python.exe'), (Join-Path $env:USERPROFILE 'venvs\cdio-simplified\Scripts\python.exe')) |
+        Where-Object { Test-Path $_ } | Select-Object -First 1
+    if (-not $Python) { throw 'Python virtual environment not found - see docs\INSTALLATION_GUIDE.md, or pass -Python' }
+}
 # Defaults for E19/E20: URLs of removed upstream features (must be 404) and markers of removed UI (must be absent)
 if (-not $ExpectRemoved) {
     $ExpectRemoved = '/rss,/mcp/v1,/site.webmanifest,/sw.js,/pwa/install-qrcode.svg,/check_proxy/00000000-0000-0000-0000-000000000000/status,/settings/llm,/settings/mcp'
@@ -97,6 +102,8 @@ try {
         for ($i = 0; $i -lt 20; $i++) { try { Invoke-RestMethod "http://127.0.0.1:$CdpPort/json/version" -TimeoutSec 2 | Out-Null; break } catch { Start-Sleep 1 } }
         Start-App $dsBrowser $BrowserAppPort @{ ALLOW_IANA_RESTRICTED_ADDRESSES = 'true'; PLAYWRIGHT_DRIVER_URL = "http://127.0.0.1:$CdpPort" } 'browser' | Out-Null
         $null = Invoke-E2ETest 'browser' $dsBrowser "http://127.0.0.1:$BrowserAppPort" @()
+        # SSRF through redirects / page JavaScript, both fetchers (Phase 15) - uses the same headless Edge
+        & $Python (Join-Path $PSScriptRoot 'ssrf_redirect_test.py') $work "http://127.0.0.1:$CdpPort" | Out-Host
         $summary.ram_mb_browser_instance_app_only = [math]::Round((Get-RamMB $BrowserAppPort), 1)
         Stop-ByCmd "*changedetection.py*-p $BrowserAppPort*"
     }
@@ -120,7 +127,7 @@ finally {
         ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 }
 $tot = 0; $pass = 0
-$modes = @('core', 'persist', 'security'); if ($Browser) { $modes += 'browser' }; if ($UI) { $modes += 'ui' }
+$modes = @('core', 'persist', 'security'); if ($Browser) { $modes += 'browser'; $modes += 'ssrf' }; if ($UI) { $modes += 'ui' }
 foreach ($m in $modes) {
     $f = Join-Path $work "results_$m.json"
     if (Test-Path $f) { $j = Get-Content $f -Raw | ConvertFrom-Json; $summary["$m"] = "$($j.passed)/$($j.total)"; $tot += $j.total; $pass += $j.passed }

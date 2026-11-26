@@ -1181,3 +1181,15 @@ html[data-darkmode="true"] .processor-badge.processor-badge-jobs { background: #
 .wp-jobcard h3 a { color: var(--wp-ink); }
 .wp-jobs .wp-trunc { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media only screen and (max-width: $desktop-wide-breakpoint) { .wp-seg { margin-left: 0; } }
+
+// Phase 15: watch list on phones - the type badge ("PRODUCT", "JOBS") and the price/stock cell were auto-placed into the
+// 40 px checkbox column of an implicit 5th row (the badge was overlapped by "In stock"), and the three buttons could
+// not wrap, so each card was ~434 px wide on a 390 px screen. Give both cells their own full-width rows.
+@media only screen and (max-width: 767px) {
+  .watch-table tbody tr {
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    > td.watch-processor { grid-column: 1 / -1; grid-row: 5; justify-self: start; }
+    > td.restock-and-price { grid-column: 1 / -1; grid-row: 6; justify-self: start; }
+    > td.buttons { flex-wrap: wrap; gap: 6px; min-width: 0; }
+  }
+}

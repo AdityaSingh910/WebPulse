@@ -749,3 +749,60 @@ Every feature was re-verified by running it (live app, throw-away instances, bro
 * `e2e/fixture_server.py`, `e2e/test_e2e.py`, `e2e/known_windows_unit_failures.txt`;
 * `tests/unit/test_job_listings.py`;
 * `docs/COMPLETE_WALKTHROUGH.md`, `docs/COMPLETE_FUNCTIONAL_AUDIT.md`.
+
+## Phase 15: final readiness and engineering audit
+
+The full report is `docs/FINAL_PROJECT_READINESS.md`. New documents:
+* `SYSTEM_ARCHITECTURE.md` (9 Mermaid diagrams);
+* `INSTALLATION_GUIDE.md`;
+* `DEMONSTRATION_SCRIPT.md`;
+* `KNOWN_LIMITATIONS.md`;
+* `ORIGINAL_CONTRIBUTIONS.md`.
+
+### Fixes
+
+* **Browser SSRF** (`content_fetchers/playwright.py`, inherited). Only the start URL was checked, so a page that
+  redirected to, or `fetch()`ed, a private address (127.0.0.1, 10.x, 169.254.169.254) had that content saved.
+  * Every browser request now goes through the private-address check (`_install_private_address_guard`, cached per
+    host).
+  * A redirect hop into a private address fails the fetch, and nothing is saved.
+  * New check `e2e/ssrf_redirect_test.py` (S09–S12), run with `-Browser`.
+* **Incomplete product readings** (`processors/restock_diff/processor.py`, inherited):
+  * a check without a price no longer wipes the stored price (that made the next price change be missed);
+  * a check without stock data is no longer a stock change (that produced two false alerts).
+
+  New e2e checks R01–R04.
+* **`run.ps1`:**
+  * refuses a second instance on the same port or data folder, with clear messages (before, a second copy ran on the
+    same data folder and replaced the first one's demo site);
+  * clear errors for a missing Python, Edge or a busy demo port;
+  * stops headless Edge by its per-port profile on exit (it was left running);
+  * portable defaults (`%USERPROFILE%` data folder, `<project>\.venv` Python).
+* **Retry setting** (`content_fetchers/requests.py`): an empty `REQUESTS_RETRY_MAX_COUNT` no longer breaks every
+  plain-HTTP fetch.
+* **Phones** (`webpulse.scss`): the watch-type badge is no longer overlapped by the stock badge, and cards fit the
+  screen.
+* **Empty lists** (`watch-overview.html`): the messages now point to Home and distinguish "nothing matches this
+  filter" from "nothing monitored yet".
+* **Tests:**
+  * a J14 race (a late alert from the previous step was counted) is fixed;
+  * `run_unit.ps1` says when pytest produced no summary;
+  * the test runners locate Python like `run.ps1`;
+  * an unused import is removed.
+
+### Demo site (`e2e/fixture_server.py`)
+
+New test modes:
+* `http_status=403|404|429|500|503`;
+* `product_page=malformed|noprice|nostock|broken`;
+* `/redirect` and `/fetch-private.html` (SSRF tests; only 127.0.0.1 targets accepted).
+
+### Results
+
+* e2e **126/126** (Phase 14: 118), also 126/126 on a clean venv installed from `requirements.txt` (91 s);
+* unit 457 passed, 0 new failures;
+* data audit 13/13; reliability 20/20; XSS 0 executions on 13 pages;
+* pip-audit: 0 known vulnerabilities in 119 packages;
+* load: 1,000 local watches in 17.3 s (3 workers) / 10.3 s (10 workers), 106 MB.
+
+No watch was recreated and no history was deleted.

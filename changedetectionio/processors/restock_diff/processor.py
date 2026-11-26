@@ -616,6 +616,14 @@ class perform_site_check(difference_detection_processor):
                 else:
                     update_obj['restock']['in_stock'] = False
 
+        # WebPulse: a reading that has the stock but not the price is incomplete. Keep the last known price instead of
+        # wiping it - otherwise a later price change would be compared with "no price" and never reported.
+        _known = watch.get('restock') or {}
+        if update_obj['restock'].get('price') is None and _known.get('price') is not None:
+            logger.warning(f"{watch.get('uuid')} restock - no price on this check, keeping the last known price {_known.get('price')}")
+            update_obj['restock']['price'] = _known.get('price')
+            update_obj['restock']['currency'] = update_obj['restock'].get('currency') or _known.get('currency')
+
         # Main detection method
         fetched_md5 = None
 
@@ -665,6 +673,12 @@ class perform_site_check(difference_detection_processor):
                     f"Lie detected in the availability machine data!! when scraping said its not in stock!! itemprop was '{itemprop_availability}' and scraped from browser was '{self.fetcher.instock_data}' update obj was {update_obj['restock']} ")
                 logger.warning(f"Setting instock to FALSE, scraper found '{self.fetcher.instock_data}' in the body but metadata reported not-in-stock")
                 update_obj['restock']["in_stock"] = False
+
+        # WebPulse: "stock not published on this check" is not a stock change - keep the last known state, so an
+        # incomplete reading does not produce an "in stock -> unknown -> in stock" pair of false alerts.
+        if update_obj['restock'].get('in_stock') is None and (watch.get('restock') or {}).get('in_stock') is not None:
+            logger.warning(f"{watch.get('uuid')} restock - no stock information on this check, keeping the last known state")
+            update_obj['restock']['in_stock'] = watch['restock'].get('in_stock')
 
         # What we store in the snapshot
         price = update_obj.get('restock').get('price') if update_obj.get('restock').get('price') else ""
