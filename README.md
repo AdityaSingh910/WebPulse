@@ -64,6 +64,8 @@ C:\Users\<you>\venvs\cdio-simplified\Scripts\python.exe demo\setup_presentation.
 
 Open **http://127.0.0.1:5000**. Everything binds to `127.0.0.1` only, and SSRF protection stays on. For a
 step-by-step walkthrough and the presentation plan, see [docs/PRESENTATION_GUIDE.md](docs/PRESENTATION_GUIDE.md).
+The complete feature-by-feature guide (operation, architecture, algorithms, source references and the final
+checklist) is [docs/COMPLETE_WALKTHROUGH.md](docs/COMPLETE_WALKTHROUGH.md).
 
 ### Real websites and controlled demonstrations
 
