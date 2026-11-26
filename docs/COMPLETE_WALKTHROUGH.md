@@ -354,45 +354,121 @@ text line, e.g. `In Stock: True - Price: 799.0`, which `_parse_restock_snapshot(
 
 ## 5. Job listing monitoring
 
-### 5.1 Real careers pages ✅
+Job monitoring is a dedicated **structured monitor** (Phase 13), comparable to the product price monitor. WebPulse
+reads each opening (title, company, location, type, team and its own job link), remembers it by its job link, and
+reports openings that are **new, removed or changed**. It does not show page-text differences.
 
-| Source | URL | Part watched (CSS) | First real result |
+### 5.1 Real careers pages ✅ (first structured read on 26 Nov, 15:59)
+
+| Source | URL | How it is read | Openings on the page → kept by keywords |
 |---|---|---|---|
-| HackerRank (Greenhouse public job board) | `https://job-boards.greenhouse.io/hackerrank` | `.job-post` | 17 technical titles, e.g. "Senior Backend Engineer", "Lead Data Engineer" |
-| Meesho (Lever public job board) | `https://jobs.lever.co/meesho` | `.posting-title` | 10 technical titles out of ~48 jobs |
-| Python.org job board | `https://www.python.org/jobs/` | `.list-recent-jobs h2 a` | 22 jobs (title and location) |
+| Hevo Data (Lever) | `https://jobs.lever.co/hevodata` | Lever job board | 42 → **18** (e.g. "SDE II · Bangalore, India · Full time · On-site · Backend") |
+| Meesho (Lever) | `https://jobs.lever.co/meesho` | Lever job board | 49 → **10** |
+| HackerRank (Greenhouse) | `https://job-boards.greenhouse.io/hackerrank` | Greenhouse job board | 32 → **17** (e.g. "DevOps Engineer II · Hybrid in Bangalore, India · Engineering") |
+| Python.org job board | `https://www.python.org/jobs/` | Page section `.list-recent-jobs h2 a` | 22 → 22 (no keywords; each job has its own company) |
 
-Checked every 12 h (python.org every 6 h). All three were working on 26 Nov. Each robots.txt allows these pages.
-Lever's robots.txt adds `Content-Signal: use=reference`, i.e. no AI training, which this personal monitoring
-respects.
+Checked every 6–12 h; robots.txt allows each page. Lever's robots.txt adds `Content-Signal: use=reference` (no AI
+training), which this personal monitoring respects. That first read is the **starting point**: those openings are
+recorded but not counted as "new". Real new, removed or changed openings appear as the companies update their boards.
 
-**Add one yourself:**
-1. Go to **Home** and paste e.g. `https://job-boards.greenhouse.io/hackerrank`.
-2. Click **More options** and set **Only watch one part of the page** to `.job-post` and **Track jobs: only jobs
-   mentioning** to `engineer, developer, data, intern`.
-3. Click **Track jobs**.
-4. **Expect:** you land on **Job listings**, and the row has a purple **Jobs** badge.
+**The Hevo problem, fixed.** The Hevo watch showed the whole page even though `.posting-title` was set. The cause was
+**not** the selector: replaying the stored page through the real filter code gave 42 postings and then 18 technical
+roles. The real cause was the **Trigger text** field ("Keyword triggers - Trigger/wait for text"), which contained
+`engineer, developer, intern, data, software` as **one line**. A trigger line must appear exactly on the page, and
+that sentence never does. `RuleEngine.evaluate_trigger_text()` therefore blocked every check, so no new version was
+ever saved, and the only version stayed the first one, which was taken before the selector was set (the full page).
+The job monitor does not use trigger text (keywords go in "Only track jobs mentioning…"), and the line was removed
+from the Hevo watch (a backup was made first).
 
-### 5.2 How it works (no separate scraper) ✅
+### 5.2 Try it
 
-* A job monitor is the normal text watcher (`text_json_diff`) in the group **"Job listings"**.
-* "Track jobs" (`blueprint/ui/views.py`, `is_jobs` branch) adds:
-  * the group;
-  * `filter_text_added/removed/replaced = True`;
-  * the selector;
-  * the keyword rule (`job_keywords_rule()`).
-* The group is created at start-up (`blueprint/home/__init__.py`).
-* **New** job = green line, **removed** = red, **modified** (title or location changed) = changed → changed-into.
-* **Ignoring unrelated changes:** the selector limits it to the job list, and the keywords limit it to relevant
-  roles.
-* **Tested ✅ (U32):**
-  * a new "Platform Engineer" job was detected;
-  * a non-technical "Office Administrator" job was ignored;
-  * the page's visitor counter and clock, which change on every visit, were ignored.
+1. **Sidebar → Job listings.**
+   * **Expect:** one card per careers page showing *active / new / removed / changed* counts, plus totals and the
+     period switch (7 days / 30 days / since monitoring started).
+2. Click **Openings** on Hevo Data.
+   * **Expect:** a table with title (and team), location, type, **First detected**, **Last seen** and **Apply**
+     (opens the job on Lever).
+   * The filters **All / New / Active / Removed / Modified** show only those openings.
+   * A **New** badge marks openings first seen after monitoring started.
+   * Removed openings are struck through and keep the date they disappeared.
+3. Scroll down to **Active openings over time**: a step chart (hover a point for the counts). Below it are
+   **Additions and removals per day** (the table view) and the **Job history**, which lists what changed at each
+   check by job title, not raw text.
+4. **Only track jobs mentioning…** shows the keywords in plain words. To change them, type
+   `engineer, data, intern` and press **Save**.
+   * **Expect:** a new starting point, with no alert and no "new" or "removed" jobs. A filter edit is not a job
+     change.
+5. **Add one yourself:**
+   1. **Home** → paste `https://jobs.lever.co/<company>` or `https://job-boards.greenhouse.io/<company>`.
+   2. **More options**: leave the page section empty (Lever and Greenhouse are recognised automatically) and enter
+      the keywords.
+   3. Click **Track jobs**. You land on that company's Openings page.
+6. **Text versions** (on the Openings page) still shows the raw text versions for anyone who wants them.
 
-  The same checks were run by hand on the controlled demo careers page.
-* **Real job changes:** none yet in the short time watched. Leave WebPulse running. For the presentation, use the
-  Controlled demo (section 11) and show any real ones collected by then.
+### 5.3 How it works
+
+```
+scheduler → queue → worker → fetcher (plain HTTP or Edge, SSRF check, proxy)       [inherited, unchanged]
+        → processors/job_listings/processor.py  run_changedetection()            [WebPulse]
+             extract.extract_jobs(html, url, selectors)   → openings
+             extract.keyword_matcher(extract_text rules)  → only matching titles
+             tracker.apply_check(state, openings, …)      → added / removed / modified, jobs.json
+        → worker saves a version (one sorted line per opening) and sends the alert   [inherited]
+```
+
+* **Extraction** (`extract.py`), first match wins:
+  1. Lever (`div.posting[data-qa-posting-id]`);
+  2. Greenhouse (`.job-post a` / `div.opening`);
+  3. your page section (CSS or XPath; each match is a job card, a job link, or a list of jobs);
+  4. schema.org `JobPosting` (JSON-LD);
+  5. automatic: job-like links outside the navigation and footer.
+
+  For Lever and Greenhouse, a selector only narrows the result to the openings inside it.
+* **Identity:** the canonical job URL (absolute, no `#fragment`, tracking parameters such as `utm_*` removed, job-id
+  parameters such as `gh_jid` kept). Without a link: a hash of title + location. So:
+  * reordering is not a change;
+  * the same link twice counts once;
+  * two openings with the same title in different cities stay two (Hevo's two "Solution Engineer (Post-sales)").
+* **Comparison** (`tracker.py`) works on sets of ids:
+  * new = id not active before;
+  * removed = active before but missing now;
+  * modified = same id with a different title, company, location, type or team (the old → new values are stored);
+  * a removed opening that comes back is new again and keeps its first-detected date.
+* **Baseline:** the first successful read. Changing the selector or keywords starts a new baseline: openings that no
+  longer match are forgotten, not "removed". That version is saved without an alert (a one-line hook in
+  `worker.py`).
+* **Failures never remove jobs:**
+  * a failed fetch never reaches the processor;
+  * a page section that matches nothing, or a page with no openings at all (blocked page, bot check, redesign), is
+    recorded as the watch's error and the stored openings are kept;
+  * a sudden drop to 20 % or less of the openings (from at least 10) must be seen on **two checks in a row** before
+    the missing openings are marked as removed.
+* **Storage:** `jobs.json` in the watch's folder, written atomically:
+  * every opening with `first_seen`, `added_at`, `last_seen`, `status`, `removed_at`, `modified_at` and its last 20
+    field changes;
+  * one `events` entry per check that changed something, which feeds the history, the chart and the per-day table.
+
+  It is bounded: 1,000 events and 1,500 removed openings. The version text is one sorted line per active opening
+  (`Title · Location · Type · Team  URL`), so notifications show "+ new opening" / "- removed opening" lines with the
+  apply link.
+* **Pages:** `blueprint/jobs` (`/jobs/`, `/jobs/<uuid>`, keywords, check now). On a job watch, "View changes" opens the
+  Openings page; `?raw=1` gives the text diff.
+* **Tests:**
+  * `tests/unit/test_job_listings.py`: 21 tests covering Lever, Greenhouse, generic, JSON-LD, automatic mode,
+    duplicates, canonical URLs, keywords, baseline, new/removed/modified, reordering, re-baseline, the sudden-drop
+    confirmation, re-opened jobs, the New window and persistence;
+  * e2e **J01–J17** (the real Track jobs form, the demo careers page, alerts, reordering, duplicates, a temporary
+    failure, keyword re-baseline), **P06–P07** (after a restart) and **U32** (in the browser).
+
+### 5.4 Converting existing careers pages
+
+The watches created before Phase 13 were switched from `text_json_diff` to `job_listings` with WebPulse stopped,
+after a backup (`C:\Users\adity\cdio-data\webpulse-demo-backup-before-jobs-20261126-155914`).
+`demo\setup_presentation.py` now does the same for any careers page in the "Job listings" group.
+
+Upstream keeps a separate version index per processor (`history.txt` for text, `history-job_listings.txt` for jobs),
+so the old text versions stay on disk but are not shown while the watch is a job monitor. Switching the processor
+back shows them again.
 
 ---
 
@@ -762,10 +838,10 @@ on `/demo/action` and `/settings/notifications/`; E2E S04, E22).
 
 | Suite | Result (26 Nov) | What it covers |
 |---|---|---|
-| `e2e\run_e2e.ps1 -Browser -UI` | **96/96** | 40 core API/UI checks, 5 persistence, 8 security (SSRF, password, CSRF), 8 browser (Playwright + Edge), 35 UI tests clicking the real interface |
-| `e2e\run_unit.ps1` | 432 passed, 0 new failures | the upstream unit tests |
+| `e2e\run_e2e.ps1 -Browser -UI` | **115/115** | 57 core API/UI checks (incl. 17 structured job checks J01–J17), 7 persistence, 8 security (SSRF, password, CSRF), 8 browser (Playwright + Edge), 35 UI tests clicking the real interface |
+| `e2e\run_unit.ps1` | 453 passed, 0 new failures | the upstream unit tests + 21 WebPulse job-monitor tests |
 | | 8 known Windows failures | 5 need admin rights or Developer Mode for symlinks; 2 need `fork()` (pytest-flask live server); 2 are outdated upstream tests. Details in `e2e/known_windows_unit_failures.txt` |
-| | templates 35/35, imports 52/52 | |
+| | templates 37/37, imports 52/52 | |
 
 ### 10.7 Known limitations
 
@@ -777,6 +853,9 @@ on `/demo/action` and `/settings/notifications/`; E2E S04, E22).
 * A sleeping laptop pauses monitoring.
 * Upstream's Linux-only integration tests (`tests/*.py`) cannot run on Windows; `e2e/` replaces them.
 * jq filters are unavailable on Windows (no wheel); CSS, XPath and JSONPath work.
+* Job monitoring reads the openings the page itself lists. Boards that load jobs only with JavaScript need the
+  browser fetch method. A board that shows **zero** openings is reported as "no openings could be read" (it cannot
+  be told apart from a blocked page). Keywords match the job **title** only.
 * Custom SMTP logs in with the part of the address before the @. Gmail, Outlook, Yahoo and Zoho are configured
   automatically.
 
@@ -791,10 +870,11 @@ on `/demo/action` and `/settings/notifications/`; E2E S04, E22).
 | 1 | **Drop the price** | Demo shop price ₹2,999 → ₹2,549 (−15 %); "What WebPulse has seen" shows the new price | "[Demo] Wireless earbuds changed", with the price diff |
 | 2 | **Raise the price** | the price rises ~12 % | yes |
 | 3 | **Sell out**, then **Restock** | an Out of stock badge, then In stock | yes, both: the demo product uses "Any availability changes" |
-| 4 | **Publish a new job** | a new line in the careers list; **View changes** shows it in green | yes |
-| 5 | **Change a job** | a "changed → changed into" pair (e.g. "- Bengaluru" → "- Hybrid, Bengaluru") | yes |
-| 6 | **Remove a job** | a red line | yes |
-| 7 | **Publish a non-technical job** | "Office Administrator" appears on the demo page but **no new version** is saved | **no**: the keyword filter worked |
+| 4 | **Publish a new job** | **Openings** (button under "What WebPulse has seen"): the job with a **New** badge, "+1 new" in the history | yes |
+| 5 | **Change a job** | the same opening is **Modified**: location "Bengaluru" → "Hybrid, Bengaluru" (same job link, so not removed + added) | yes |
+| 6 | **Remove a job** | **Removed** filter: struck through, with the time it disappeared | yes |
+| 7 | **Publish a non-technical job** | "Office Administrator" appears on the demo page but nothing changes in WebPulse | **no**: the keyword filter worked |
+| 7b | **Reorder the jobs** | the same jobs in a different order: no change, no new version | **no**: openings are compared by their job link |
 | 8 | **Change the page text** | the news text changes; **View changes** shows red/green | yes |
 | 9 | **Reset the demo site** | the demo site returns to its start; WebPulse's history is kept | no (nothing is checked) |
 
@@ -821,7 +901,8 @@ Tested by U33 (price drop detected) and by driving the page in a browser.
    SequenceMatcher → red/green steps. Wikipedia: changes captured automatically by the 1-hour interval.
 3. **Real products (1.5 min).** Products: Decathlon ₹799 (plain vs browser), Sleepy Owl out of stock (the shop's
    own data). Any genuine price or stock change collected by then.
-4. **Real jobs (1 min).** Job listings → HackerRank → View page: only the technical job titles.
+4. **Real jobs (1 min).** Job listings: one card per company with active/new/removed/changed counts. Open Hevo Data:
+   18 technical openings with location, type, first detected and an Apply link; the chart and job history below.
 5. **Controlled demo, live (2.5 min).** Drop the price → alert on the phone. Publish a new job → alert. Publish a
    non-technical job → no alert.
 6. **Notification history and security (1 min).** History rows; password and token never shown; SSRF; localhost
@@ -861,7 +942,7 @@ still be shown.
 | Datastore, Watch model, Brotli snapshots | Removal of LLM/MCP, PWA, RSS output, image diff, Selenium/Puppeteer (Phases 2–7) |
 | Scheduler thread, priority queue, async workers, UUID claims | WebPulse UI: shell, sidebar, Home use-case dashboard, design system, technical-settings toggle, plain labels |
 | Fetchers (requests, Playwright) and the SSRF gate | Notifications page (Email/Telegram, `simple_setup.py`) and the persistent masked notification history (`history.py`) |
-| `text_json_diff` and `restock_diff` processors, filters, MD5, the diff engine | Job listing mode (Track jobs, keyword rule, Job listings group/page) |
+| `text_json_diff` and `restock_diff` processors, filters, MD5, the diff engine | Structured job monitor: the `job_listings` processor (`extract.py`, `tracker.py`), the Job listings and Openings pages, the Track jobs form and keyword rule |
 | Price extraction (JSON-LD, microdata, OG, extruct) and price statistics | Controlled demo page (`demo_lab`) and the hardened demo site |
 | Apprise notifications, REST API, backups/restore, CSRF, password hashing, Socket.IO | `run.ps1` single start, the retry setting, the demo-proxy safety fix, the preview-500 and link fixes, the e2e harness (96 checks), the presentation tooling, and the documentation |
 
@@ -885,8 +966,10 @@ Legend: ✅ yes · ⚠️ partly or needs a condition · ❌ no · — not appli
 | Price increase/decrease and % | ✅ | ✅ (C10, U33, formula verified) | ⚠️ only when shops change prices | ✅ | — | — |
 | Out of stock / back in stock | ✅ | ✅ (C09, U08, demo) | ⚠️ Sleepy Owl and boAt currently out of stock; a restock would be genuine | ✅ | — | Default for new products: alert on restock only |
 | Price chart, min/max/average | ✅ | ✅ (C13–C14, U09–U10, hand calculation) | ⚠️ needs 2+ real price versions | ✅ | — | Not time-weighted |
-| Job boards (HackerRank, Meesho, python.org) | ✅ | ✅ (live extraction 17/10/22) | ✅ | — | — | Layout changes break the selector |
-| Job keyword filter, new/removed/modified jobs, noise ignored | ✅ | ✅ (U32, demo) | ⚠️ real job changes take days | ✅ | — | — |
+| Job boards: structured openings (Hevo, Meesho, HackerRank, python.org) | ✅ | ✅ (live 26 Nov: 18/10/17/22; unit tests; J01–J04) | ✅ | — | — | JavaScript-only boards need the browser; a board with 0 openings shows an error |
+| New / removed / modified openings, reordering, duplicates, failures | ✅ | ✅ (J05–J13, unit tests, demo buttons) | ⚠️ real job changes take days | ✅ | — | — |
+| Job keyword filter (titles), re-baseline on edit | ✅ | ✅ (J02, J08, J14, U32) | ✅ | — | — | Matches titles only |
+| Job history, chart, per-day table, persistence | ✅ | ✅ (J11, P06–P07) | ⚠️ needs real changes over time | ✅ | — | — |
 | Email notification | ✅ | ⚠️ URL building and masking (U31); **real delivery not yet tested** | — | — | ✅ Gmail app password | Secret stored unencrypted |
 | Telegram notification | ✅ | ⚠️ as above; **real delivery not yet tested** | — | — | ✅ bot token | Same |
 | Notification history and failure handling | ✅ | ✅ (U30, U15) | — | — | — | "Delivered" = accepted by the service |

@@ -99,20 +99,23 @@
     {# 4. Job listings #}
     <article class="wp-card wp-feature" id="card-jobs">
       <header><span class="wp-ico"><i data-feather="briefcase"></i></span><h3>{{ _('Job Listing Monitoring') }}</h3></header>
-      <p class="wp-purpose">{{ _('WebPulse watches the job list on a careers page and tells you when a job is added, changed or removed.') }}</p>
+      <p class="wp-purpose">{{ _('WebPulse reads each opening on a careers page or job board and tells you when one is added, changed or removed.') }}</p>
+      {%- set js = job_summary.values()|list -%}
       <div class="wp-stats">
         <div><strong>{{ jobs_n }}</strong><span>{{ _('careers pages') }}</span></div>
-        <div class="{{ 'is-new' if jobs_unread_n }}"><strong>{{ jobs_unread_n }}</strong><span>{{ _('with new changes') }}</span></div>
+        <div><strong>{{ js|sum(attribute='active') }}</strong><span>{{ _('active openings') }}</span></div>
+        <div class="{{ 'is-new' if js|sum(attribute='new') }}"><strong>{{ js|sum(attribute='new') }}</strong><span>{{ _('new this week') }}</span></div>
       </div>
       {% if jobs %}
       <ul class="wp-list">
         {% for w in jobs %}
-        <li><span class="wp-trunc"><a href="{{ (url_for('ui.ui_diff.diff_history_page', uuid=w.uuid) if w.history_n >= 2 else url_for('ui.ui_preview.preview_page', uuid=w.uuid)) }}">{{ w.label }}</a> {{ demo_chip(w) }}</span>
-            <span>{% if w.last_changed %}{{ _('changed') }} {{ w.last_changed|format_timestamp_timeago }}{% else %}{{ _('no change yet') }}{% endif %}</span></li>
+        {%- set sm = job_summary.get(w.uuid) -%}
+        <li><span class="wp-trunc"><a href="{{ url_for('jobs.job_page', uuid=w.uuid) if sm else ((url_for('ui.ui_diff.diff_history_page', uuid=w.uuid) if w.history_n >= 2 else url_for('ui.ui_preview.preview_page', uuid=w.uuid))) }}">{{ w.label }}</a> {{ demo_chip(w) }}</span>
+            <span>{% if sm %}{{ sm.active }} {{ _('active') }}{% if sm.new %} · <strong class="wp-new-count">{{ sm.new }} {{ _('new') }}</strong>{% endif %}{% elif w.last_changed %}{{ _('changed') }} {{ w.last_changed|format_timestamp_timeago }}{% else %}{{ _('no change yet') }}{% endif %}</span></li>
         {% endfor %}
       </ul>
       {% else %}<p class="wp-empty">{{ _('No careers pages yet. Paste one above and press “Track jobs”.') }}</p>{% endif %}
-      <footer><a class="wp-btn" href="{{ url_for('watchlist.index', tag=job_listings_group) }}">{{ _('All job listings') }}</a></footer>
+      <footer><a class="wp-btn" href="{{ url_for('jobs.overview') }}">{{ _('All job listings') }}</a></footer>
     </article>
 
     {# 5. Price analytics #}

@@ -4,7 +4,7 @@ The upstream pytest suite needs fork() (pytest-flask live_server) and cannot run
 so these tests drive a real running instance over HTTP instead (REST API + UI pages).
 
 Modes
-  core      18 core checks (C01-C18) + extended checks (E..). Needs ALLOW_IANA_RESTRICTED_ADDRESSES=true
+  core      18 core checks (C01-C18) + extended checks (E..) + structured job listings (J..). Needs ALLOW_IANA_RESTRICTED_ADDRESSES=true
             on the app under test because the fixture site is on 127.0.0.1.
   persist   run after restarting the app on the same datastore: data must survive (P..)
   security  run against an instance WITHOUT the SSRF bypass and WITH SALTED_PASS set (S..)
@@ -245,8 +245,175 @@ def mode_core():
         leftovers = [w for w in no_ui if w.lower() in page.lower()]
         check('E20', f'No UI elements of removed features ({len(no_ui)} markers)', not leftovers, leftovers or 'clean')
 
-    json.dump({'text_uuid': text_uuid, 'prod_uuid': prod_uuid, 'tag_uuid': tag_uuid, 'sched_uuid': sched_uuid},
+    job_uuid = jobs_checks(api, notif)
+
+    json.dump({'text_uuid': text_uuid, 'prod_uuid': prod_uuid, 'tag_uuid': tag_uuid, 'sched_uuid': sched_uuid, 'job_uuid': job_uuid},
               open(STATE_FILE, 'w'))
+
+
+# ---------------- WebPulse structured job listings (processors/job_listings) ----------------
+def _csrf(sess, url):
+    m = re.search(r'name="csrf_token"[^>]*value="([^"]+)"', sess.get(url, timeout=30).text)
+    return m.group(1) if m else ''
+
+
+def _jobs_state(uuid):
+    try:
+        return json.load(open(os.path.join(DS, uuid, 'jobs.json'), encoding='utf-8'))
+    except (OSError, ValueError):
+        return {}
+
+
+def _recheck_and_wait(api, uuid, timeout=60):
+    """Queue a check and wait until it has finished (also when no new version is saved)"""
+    before = int(api('GET', f'/watch/{uuid}').json().get('check_count') or 0)
+    time.sleep(1.1)
+    api('GET', f'/watch/{uuid}?recheck=1')
+    t0 = time.time()
+    while time.time() - t0 < timeout:
+        w = api('GET', f'/watch/{uuid}').json()
+        if int(w.get('check_count') or 0) > before and not w.get('checking_now'):
+            return w
+        time.sleep(0.7)
+    return api('GET', f'/watch/{uuid}').json()
+
+
+def _active(st):
+    return sorted(j['title'] for j in (st.get('jobs') or {}).values() if j.get('status') == 'active')
+
+
+def jobs_checks(api, notif):
+    base_jobs = ('Backend Engineer (Python) - Bengaluru|Data Engineer - Hyderabad|Software Engineering Intern - Remote|'
+                 'Office Administrator - Mumbai')
+    requests.post(FIX + '/set', params={'jobs': base_jobs})
+    s = requests.Session()
+    tok = _csrf(s, BASE + '/')
+    r = s.post(BASE + '/form/add/quickwatch', data={'csrf_token': tok, 'url': FIX + '/jobs.html', 'processor': 'job_listings',
+               'include_filters': '#job-list', 'job_keywords': 'engineer, developer, data, intern'}, allow_redirects=False, timeout=30)
+    uuid = next((u for u, w in api('GET', '/watch').json().items() if w.get('url') == FIX + '/jobs.html'), None)
+    w = api('GET', f'/watch/{uuid}').json() if uuid else {}
+    check('J01', 'Home "Track jobs" creates a job_listings watch with selector + keywords',
+          uuid and w.get('processor') == 'job_listings' and r.status_code == 302 and f'/jobs/{uuid}' in r.headers.get('Location', ''),
+          f"processor={w.get('processor')} loc={r.headers.get('Location')}")
+    if not uuid:
+        return None
+    api('PUT', f'/watch/{uuid}', json={'notification_urls': notif})
+    w = wait_checked(api, uuid, 1)
+    st = _jobs_state(uuid)
+    check('J02', 'First check = baseline: 3 technical openings, non-technical one filtered, nothing "new"',
+          _active(st) == ['Backend Engineer (Python)', 'Data Engineer', 'Software Engineering Intern']
+          and st.get('baseline_at') and all(j.get('baseline') for j in st['jobs'].values()),
+          f"active={_active(st)} err={w.get('last_error')}")
+    j = next((x for x in st.get('jobs', {}).values() if x['title'] == 'Data Engineer'), {})
+    check('J03', 'Structured fields: location, type, company, canonical apply URL',
+          j.get('location') == 'Hyderabad' and j.get('employment_type') == 'Full time' and j.get('company') == 'DemoCorp'
+          and j.get('url', '').endswith('/jobs/data-engineer'), json.dumps(j)[:200])
+    page = s.get(f'{BASE}/jobs/{uuid}', timeout=30)
+    check('J04', 'Openings page lists the jobs with apply links', page.status_code == 200 and 'Data Engineer' in page.text
+          and '/jobs/data-engineer' in page.text and 'Office Administrator' not in page.text, page.status_code)
+    n0 = len(read_log())
+
+    # a new opening
+    jobs_now = 'Site Reliability Engineer - Pune|' + base_jobs
+    requests.post(FIX + '/set', params={'jobs': jobs_now})
+    _recheck_and_wait(api, uuid)
+    st = _jobs_state(uuid)
+    ev = (st.get('events') or [{}])[-1]
+    page = s.get(f'{BASE}/jobs/{uuid}?show=new', timeout=30).text
+    time.sleep(2)
+    log = read_log()
+    check('J05', 'New opening detected, listed under "New" with a New badge',
+          ev.get('kind') == 'change' and [a['title'] for a in ev.get('added', [])] == ['Site Reliability Engineer']
+          and 'wp-badge--new' in page and 'Site Reliability Engineer' in page, json.dumps(ev)[:200])
+    check('J06', 'One alert for the new opening, none for the baseline',
+          len(log) == n0 + 1 and 'Site Reliability Engineer' in log[-1] if log else False, f"{n0}->{len(log)}")
+
+    # the same openings in a different order
+    requests.post(FIX + '/set', params={'jobs': '|'.join(reversed(jobs_now.split('|')))})
+    h_before = int(api('GET', f'/watch/{uuid}').json().get('history_n') or 0)
+    _recheck_and_wait(api, uuid)
+    st2 = _jobs_state(uuid)
+    time.sleep(1.5)
+    check('J07', 'Reordered list: no change, no new version, no alert',
+          len(st2['events']) == len(st['events']) and int(api('GET', f'/watch/{uuid}').json().get('history_n') or 0) == h_before
+          and len(read_log()) == n0 + 1, f"events {len(st['events'])}->{len(st2['events'])}")
+
+    # a duplicate listing and a non-technical job
+    requests.post(FIX + '/set', params={'jobs': jobs_now + '|Data Engineer - Hyderabad|Receptionist - Delhi'})
+    _recheck_and_wait(api, uuid)
+    st3 = _jobs_state(uuid)
+    check('J08', 'Duplicate listing and a non-technical job: no change', len(st3['events']) == len(st2['events']),
+          f"active={_active(st3)}")
+
+    # the same job (same link) with a new location
+    jobs_now = jobs_now.replace('Data Engineer - Hyderabad', 'Data Engineer - Hybrid, Hyderabad')
+    requests.post(FIX + '/set', params={'jobs': jobs_now})
+    _recheck_and_wait(api, uuid)
+    st = _jobs_state(uuid)
+    ev = st['events'][-1]
+    m = (ev.get('modified') or [{}])[0]
+    check('J09', 'Changed location = modified opening (same id), not removed + added',
+          not ev.get('added') and not ev.get('removed') and m.get('title') == 'Data Engineer'
+          and m.get('changes') == [{'field': 'location', 'old': 'Hyderabad', 'new': 'Hybrid, Hyderabad'}], json.dumps(ev)[:220])
+
+    # a removed opening
+    jobs_now = jobs_now.replace('Software Engineering Intern - Remote|', '')
+    requests.post(FIX + '/set', params={'jobs': jobs_now})
+    _recheck_and_wait(api, uuid)
+    st = _jobs_state(uuid)
+    ev = st['events'][-1]
+    rem = next((x for x in st['jobs'].values() if x['title'] == 'Software Engineering Intern'), {})
+    check('J10', 'Removed opening: status removed with the time, kept in history',
+          [x['title'] for x in ev.get('removed', [])] == ['Software Engineering Intern'] and rem.get('status') == 'removed'
+          and rem.get('removed_at'), json.dumps(ev)[:200])
+    page = s.get(f'{BASE}/jobs/{uuid}?show=removed', timeout=30).text
+    check('J11', 'Removed filter shows it; chart and per-day table present',
+          'Software Engineering Intern' in page and 'wp-badge--removed' in page and 'Additions and removals per day' in page
+          and '<svg' in page, '')
+
+    # a temporary extraction failure: the job list is empty
+    events_before, active_before = len(st['events']), _active(st)
+    requests.post(FIX + '/set', params={'jobs': '|'})     # no job entries (an empty value would be ignored by the site)
+    w = _recheck_and_wait(api, uuid)
+    st = _jobs_state(uuid)
+    check('J12', 'Empty job list = error, nothing marked as removed',
+          'No job openings' in str(w.get('last_error')) and len(st['events']) == events_before and _active(st) == active_before,
+          f"err={str(w.get('last_error'))[:80]} active={len(_active(st))}")
+    requests.post(FIX + '/set', params={'jobs': jobs_now})
+    w = _recheck_and_wait(api, uuid)
+    st = _jobs_state(uuid)
+    check('J13', 'Page back to normal: error cleared, no change reported',
+          not w.get('last_error') and len(st['events']) == events_before, f"err={w.get('last_error')}")
+
+    # new keywords = new starting point, no alert
+    n1 = len(read_log())
+    tok = _csrf(s, f'{BASE}/jobs/{uuid}')
+    before = int(api('GET', f'/watch/{uuid}').json().get('check_count') or 0)
+    s.post(f'{BASE}/jobs/{uuid}/keywords', data={'csrf_token': tok, 'job_keywords': 'engineer, administrator'}, timeout=30)
+    t0 = time.time()
+    while time.time() - t0 < 60:
+        w = api('GET', f'/watch/{uuid}').json()
+        if int(w.get('check_count') or 0) > before and not w.get('checking_now'):
+            break
+        time.sleep(0.7)
+    st = _jobs_state(uuid)
+    ev = st['events'][-1]
+    adm = next((x for x in st['jobs'].values() if x['title'] == 'Office Administrator'), {})
+    time.sleep(1.5)
+    check('J14', 'Changing the keywords re-baselines silently (no new/removed, no alert)',
+          ev.get('kind') == 'baseline' and ev.get('reason') == 'filters' and adm.get('baseline') is True
+          and 'Office Administrator' in _active(st) and not ev.get('added') and not ev.get('removed') and len(read_log()) == n1, f"active={_active(st)} log {n1}->{len(read_log())}")
+
+    r = s.get(f'{BASE}/diff/{uuid}', allow_redirects=False, timeout=30)
+    r2 = s.get(f'{BASE}/diff/{uuid}?raw=1', timeout=30)
+    check('J15', '"View changes" opens the openings page; raw text versions still available',
+          r.status_code == 302 and f'/jobs/{uuid}' in r.headers.get('Location', '') and r2.status_code == 200, f"{r.status_code} {r2.status_code}")
+    r = s.get(f'{BASE}/jobs/', timeout=30)
+    check('J16', 'Job listings overview: counts per careers page', r.status_code == 200 and f'jobs-{uuid}' in r.text
+          and 'active openings' in r.text, r.status_code)
+    r = s.get(f'{BASE}/jobs/{uuid}?show=bogus&days=abc', timeout=30)
+    check('J17', 'Bad filter values fall back safely', r.status_code == 200, r.status_code)
+    return uuid
 
 
 def mode_persist():
@@ -264,6 +431,13 @@ def mode_persist():
     check('P04', 'Snapshot content readable after restart', 'BIG NEWS' in d.text, d.text[:80])
     r = requests.get(f"{BASE}/diff/{st['prod_uuid']}/processor-data", timeout=30)
     check('P05', 'Price history series persisted', r.status_code == 200 and len(r.json().get('series', [])) == 2)
+    if st.get('job_uuid'):
+        js = _jobs_state(st['job_uuid'])
+        r = requests.get(f"{BASE}/jobs/{st['job_uuid']}?show=all", timeout=30)
+        check('P06', 'Job state and history persisted (jobs.json)', len(js.get('events') or []) >= 4 and js.get('baseline_at'),
+              len(js.get('events') or []))
+        check('P07', 'Openings page after restart shows removed and current jobs',
+              r.status_code == 200 and 'Software Engineering Intern' in r.text and 'Site Reliability Engineer' in r.text, r.status_code)
 
 
 def mode_security():

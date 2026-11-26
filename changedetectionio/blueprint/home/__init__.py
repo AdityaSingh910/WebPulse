@@ -27,6 +27,8 @@ def construct_blueprint(datastore: ChangeDetectionStore, update_q, worker_pool):
                 if (t.get('title') or '').strip().lower() == JOB_LISTINGS_GROUP.lower()}
 
     def is_job_watch(w, tag_uuids=None):
+        if w.get('processor') == 'job_listings':
+            return True
         tag_uuids = job_tag_uuids() if tag_uuids is None else tag_uuids
         return bool(set(w.get('tags') or []) & tag_uuids)
 
@@ -67,6 +69,7 @@ def construct_blueprint(datastore: ChangeDetectionStore, update_q, worker_pool):
             """Real websites before controlled-demo ones, then most recently changed first"""
             return sorted(ws, key=lambda w: (is_demo_watch(w), -(w.last_changed or 0)))
 
+        from changedetectionio.processors.job_listings import tracker as job_tracker
         products = [w for w in watches if w.get('processor') == 'restock_diff']
         jobs = [w for w in watches if w.get('processor') != 'restock_diff' and is_job_watch(w, job_uuids)]
         sites = [w for w in watches if w.get('processor') != 'restock_diff' and not is_job_watch(w, job_uuids)]
@@ -115,6 +118,8 @@ def construct_blueprint(datastore: ChangeDetectionStore, update_q, worker_pool):
             stock_list=real_first(in_stock + out_stock)[:4],
             # jobs
             jobs=real_first(jobs)[:5], jobs_n=len(jobs), jobs_unread_n=sum(1 for w in jobs if w.has_unviewed),
+            job_summary={w.get('uuid'): job_tracker.summary(job_tracker.load_state(w.data_dir), now, 7)
+                         for w in jobs if w.get('processor') == 'job_listings'},
             # analytics
             analytics=analytics,
             # notifications

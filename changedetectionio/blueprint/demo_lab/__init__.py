@@ -154,6 +154,12 @@ def construct_blueprint(datastore, update_q, queuedWatchMetaData, worker_pool):
             changed = first.replace(' - ', ' - Hybrid, ', 1) if 'Hybrid' not in first else first.replace('Hybrid, ', '', 1)
             _set(jobs='|'.join([changed] + jobs[1:]))
             target, msg = '/jobs.html', gettext('Job changed: “%(old)s” is now “%(new)s”.', old=first, new=changed)
+        elif action == 'shuffle_jobs':
+            if len(jobs) < 2:
+                flash(gettext('Publish at least two jobs first.'), 'error')
+                return redirect(url_for('demo_lab.demo_page'))
+            _set(jobs='|'.join(jobs[1:] + jobs[:1]))
+            target, msg = '/jobs.html', gettext('The same jobs are now listed in a different order. WebPulse should report no change.')
         elif action == 'news_update':
             text = time.strftime('Company update at %H:%M: ') + gettext('our new office in Pune opens next month.')
             _set(text=text)

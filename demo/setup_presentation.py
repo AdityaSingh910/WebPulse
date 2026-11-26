@@ -94,7 +94,8 @@ def main():
 
     restock = {'processor': 'restock_diff',
                'processor_config_restock_diff': {'in_stock_processing': 'all_changes', 'follow_price_changes': True}}
-    jobs = {'filter_text_added': True, 'filter_text_removed': True, 'filter_text_replaced': True, 'extract_text': [job_rule]}
+    # Structured job monitoring (processors/job_listings): each opening is read and compared by its job link
+    jobs = {'processor': 'job_listings', 'extract_text': [job_rule]}
 
     # ---- 3. real examples ----
     add('https://www.decathlon.in/p/8189216/men-mountain-hiking-warm-fleece-gilet-jacket-black', 'Indian shops (live)',
@@ -113,7 +114,7 @@ def main():
         {'title': 'Meesho careers (Lever job board) - technical roles', 'include_filters': ['.posting-title'], **jobs, **every(hours=12)})
     add('https://www.python.org/jobs/', JOBS,
         {'title': 'Python.org job board - Python developer jobs', 'include_filters': ['.list-recent-jobs h2 a'],
-         'filter_text_added': True, 'filter_text_removed': True, 'filter_text_replaced': True, **every(hours=6)})
+         'processor': 'job_listings', **every(hours=6)})
 
     # Hacker News changes several times an hour - keep it as a "frequent change" example, without alerts
     for w in watching.values():
@@ -125,6 +126,14 @@ def main():
     add('http://careers.webpulse-demo.test/jobs.html', f'{JOBS}, Demo site (simulated)',
         {'title': '[Demo] DemoCorp careers page - technical roles', 'proxy': DEMO_PROXY, 'include_filters': ['#job-list'],
          **jobs, **every(hours=24)})
+
+    # ---- 4c. careers pages added before structured job monitoring existed: read them opening by opening ----
+    jobs_tag = ds.tag_uuid_for_title(JOBS) if ds.tag_exists_by_name(JOBS) else None
+    for w in watching.values():
+        if jobs_tag in (w.get('tags') or []) and w.get('processor') == 'text_json_diff':
+            w['processor'] = 'job_listings'     # text history is kept; the next check records the openings as the baseline
+            w.commit()
+            print('converted', w.get('title') or w.get('url'), '-> structured job monitoring')
 
     # ---- 5. alert wording ----
     app['notification_title'] = 'WebPulse: {{watch_title}} changed'

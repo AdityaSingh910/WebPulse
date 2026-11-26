@@ -4,6 +4,7 @@
 {%- set _authed = current_user.is_authenticated or not has_password -%}
 {%- if _ep == 'home.home_page' -%}{%- set _page = _('Home') -%}
 {%- elif _ep == 'watchlist.index' -%}{%- set _page = _('Products') if request.args.get('processor') == 'restock_diff' else (_('Job listings') if (request.args.get('tag') or '').strip().lower() == 'job listings' else _('Websites')) -%}
+{%- elif _ep.startswith('jobs.') -%}{%- set _page = _('Job listings') -%}
 {%- elif _ep.startswith('demo_lab.') -%}{%- set _page = _('Controlled demo') -%}
 {%- elif _ep.startswith('add_watch_ui.') -%}{%- set _page = _('Add watch') -%}
 {%- elif _ep.startswith('ui.ui_edit') -%}{%- set _page = _('Edit') -%}

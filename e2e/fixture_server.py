@@ -3,7 +3,10 @@
 GET  /product.html          -> schema.org Product page, name/price/stock from state.json
 GET  /page.html             -> plain text page, body text from state.json
 GET  /jobs.html             -> a careers page: the job list (#job-list) from state.json, plus a banner and footer
-                               that change on EVERY request (used to show that a CSS filter ignores them)
+                               that change on EVERY request (used to show that a CSS filter ignores them).
+                               Each job "Title - Location" is a card with its own link /jobs/<slug of the title>,
+                               so changing the location keeps the same job (a "modified" opening)
+GET  /jobs/<slug>           -> the detail page of one job (the "Apply" link)
 GET  /js.html, /js-product.html -> content / price data that only exists after JavaScript runs
 GET  /slow.html?d=SECONDS&n=ID -> responds after a delay of at most 10 s (used to prove concurrent workers)
 GET  /state.json            -> the current state (read by the WebPulse "Controlled demo" page)
@@ -21,6 +24,7 @@ Usage: python fixture_server.py <port> <work_dir>
 import json
 import os
 import random
+import re
 import sys
 import time
 from html import escape
@@ -48,6 +52,18 @@ def load():
     except (OSError, ValueError):
         pass
     return s
+
+
+def parse_jobs(value):
+    """'Title - Location|...' -> [(slug, title, location)]; the slug comes from the title only"""
+    out = []
+    for j in (value or '').split('|'):
+        if not j.strip():
+            continue
+        title, _, loc = j.rpartition(' - ') if ' - ' in j else (j, '', '')
+        slug = re.sub(r'[^a-z0-9]+', '-', title.lower()).strip('-')[:80] or 'job'
+        out.append((slug, title.strip(), loc.strip()))
+    return out
 
 
 def save(s):
@@ -97,13 +113,20 @@ class Handler(BaseHTTPRequestHandler):
             self._send(f"<html><head><title>News page</title></head><body><h1>News</h1>"
                        f"<p>{escape(s['text'])}</p></body></html>")
         elif u.path == '/jobs.html':
-            jobs = [j for j in s['jobs'].split('|') if j.strip()]
-            items = ''.join(f"<li class='job'>{escape(j)}</li>" for j in jobs)
+            items = ''.join(f"<li class='job'><a class='job-title' href='/jobs/{slug}'>{escape(title)}</a>"
+                            f"<span class='job-location'>{escape(loc)}</span><span class='job-type'>Full time</span></li>"
+                            for slug, title, loc in parse_jobs(s['jobs']))
             self._send("<html><head><title>DemoCorp Careers</title></head><body>"
                        "<h1>Careers at DemoCorp (WebPulse controlled demo)</h1>"
                        f"<p class='banner'>Visitors today: {random.randint(100, 999)} - join our team!</p>"
                        f"<h2>Open positions</h2><ul id='job-list'>{items}</ul>"
                        f"<footer>Page generated at {time.strftime('%H:%M:%S')}</footer></body></html>")
+        elif u.path.startswith('/jobs/'):
+            job = next((j for j in parse_jobs(s['jobs']) if j[0] == u.path[len('/jobs/'):]), None)
+            if not job:
+                return self._404()
+            self._send(f"<html><head><title>{escape(job[1])}</title></head><body><h1>{escape(job[1])}</h1>"
+                       f"<p>{escape(job[2])} - DemoCorp (WebPulse controlled demo)</p></body></html>")
         elif u.path == '/js.html':
             # Content only exists after JavaScript runs - a plain HTTP fetch sees just the placeholder
             self._send("<html><head><title>JS page</title></head><body><div id='app'>Loading...</div>"

@@ -573,3 +573,115 @@ Files: `run.ps1`, `e2e/run_e2e.ps1`, `e2e/ui_test.py`, `e2e/known_windows_unit_f
 `changedetectionio/tests/unit/test_xml_security.py`, `blueprint/home/templates/home.html`,
 `blueprint/demo_lab/templates/demo-lab.html`, `blueprint/settings/notifications/__init__.py` and
 `notifications-simple.html`, `docs/PRESENTATION_GUIDE.md`, and `docs/SIMPLIFICATION_REPORT.md`.
+
+
+## Phase 13: structured job-listing monitoring
+
+Job monitoring used to be the website watcher with a CSS selector and keywords, so it reported lines of page text.
+It is now a dedicated processor, comparable to product price and stock monitoring. Each opening is read on its own
+and compared by its job link. The inherited scheduler, queue, workers, fetchers (plain HTTP and Edge, proxies, SSRF
+checks), datastore and notifications are reused unchanged.
+
+### The Hevo Data watch
+
+**Symptom:** `https://jobs.lever.co/hevodata` showed the whole page although `.posting-title` was set.
+
+**Measured:** replaying the stored page through the real filter code gave 42 postings and, after the keyword rule, 18
+technical roles, so the selector and keywords worked.
+
+**Cause:** the watch's **Trigger text** held `engineer, developer, intern, data, software` as **one line**. A trigger
+line has to appear on the page exactly, and that sentence never does. `RuleEngine.evaluate_trigger_text()`
+therefore blocked every check. No version after the first was saved, and the first had been taken before the
+selector was set, so it was the whole page.
+
+**Fix:**
+* the job monitor does not use trigger text;
+* the line was removed from that watch after a backup;
+* keywords belong in "Only track jobs mentioning…", which splits on commas.
+
+### New: `processors/job_listings`
+
+* **`extract.py`** reads the openings (title, company, location, employment type, team, apply URL). The first
+  strategy that matches is used:
+  1. Lever;
+  2. Greenhouse (current and old boards);
+  3. the user's page section (CSS or XPath; a match is a job card, a job link, or a list of jobs);
+  4. schema.org `JobPosting` JSON-LD;
+  5. automatic job links outside the navigation and footer.
+
+  The id is the canonical job URL (no fragment; tracking parameters removed; job-id parameters kept). The keyword
+  rule created by Track jobs is applied to job titles.
+* **`tracker.py`** compares and stores the openings:
+  * comparisons are set-based, so reordering is not a change and duplicates count once;
+  * new / removed / modified (field-level old → new) / re-opened;
+  * the first read is the baseline, and changing the selector or keywords starts a new baseline with no alert;
+  * the state file is `jobs.json` (atomic writes, bounded size), with a history of events.
+* **`processor.py`** ties these into the normal life cycle:
+  * a page section that matches nothing, or a page with no openings, becomes the watch's error and never removes
+    jobs;
+  * a drop to 20 % or less must be seen twice in a row before openings are marked as removed;
+  * the saved version is one sorted line per opening, so alerts list new and removed openings with their links.
+* **`worker.py`** (inherited, one hook): a baseline version is saved without sending an alert.
+
+### New pages: `blueprint/jobs`
+
+* **`/jobs/`:** one card per careers page, with active / new / removed / changed counts, totals and a
+  7-day / 30-day / all-time period.
+* **`/jobs/<uuid>`:**
+  * openings with the filters All / New / Active / Removed / Modified, a New badge, First detected, Last seen and
+    Apply;
+  * a step chart of active openings over time (hover for details) and a per-day additions/removals table;
+  * the job history in plain words, and a plain-words keyword editor.
+* "View changes" on a job watch opens this page; `?raw=1` keeps the inherited text diff.
+
+### Changed
+
+* **Navigation:** the sidebar "Job listings" item and the Home card (now active openings and "new this week") point
+  to the new pages; the watch list shows a "Jobs" badge and an "Openings" button.
+* **Track jobs** (`blueprint/ui/views.py`) creates a `job_listings` watch and opens its Openings page.
+* **Controlled demo:**
+  * the demo careers page renders job cards with their own links, locations and types, so "Change a job" is a
+    genuine *modified* opening;
+  * a new **Reorder the jobs** button shows that reordering is not a change.
+* **`demo/setup_presentation.py`:** creates job watches with the new processor and converts older careers-page
+  watches.
+
+### Tests
+
+* **Unit:** `tests/unit/test_job_listings.py`, 21 tests.
+* **e2e core J01–J17:**
+  * the real Track jobs form, baseline, fields and the Openings page;
+  * new opening and alert; reordering; a duplicate and a non-technical job;
+  * modified, removed, an empty-list failure and its recovery;
+  * keyword re-baseline; the redirects; bad parameters.
+* **e2e persist P06–P07:** after a restart.
+* **U32:** updated for the Openings page; `/jobs/` was added to the broken-link crawl.
+* **Results:** e2e **115/115**, 0 unexpected app-log errors (one run had a one-off Socket.IO "data frame after close"
+  console message on `/demo/`, not reproduced in the next full run). Unit tests: 453 passed, 0 new failures.
+
+**Real boards, first structured read (26 Nov, 15:59):**
+
+| Board | Read as | Openings on the page → kept by keywords |
+|---|---|---|
+| Hevo Data | Lever | 42 → 18 |
+| Meesho | Lever | 49 → 10 |
+| HackerRank | Greenhouse | 32 → 17 |
+| python.org | page section | 22 → 22 |
+
+**Live data:** the five careers-page watches were converted with WebPulse stopped, after a backup. Upstream keeps a
+separate version index per processor, so their old text versions remain on disk (`history.txt`) but are not shown
+while the watch is a job monitor.
+
+**Files:**
+* new:
+  * `processors/job_listings/{__init__,extract,tracker,processor}.py`;
+  * `blueprint/jobs/__init__.py` and its templates `jobs-overview.html` and `jobs-detail.html`;
+  * `tests/unit/test_job_listings.py`;
+* changed:
+  * `worker.py`, `flask_app.py`, `blueprint/ui/diff.py`, `blueprint/ui/views.py`;
+  * `blueprint/home/__init__.py` and `home.html`;
+  * `blueprint/demo_lab/__init__.py` and `demo-lab.html`;
+  * `watch-overview-single-row.html`, `templates/base.html`, `templates/sidebar-nav.html`;
+  * `static/styles/scss/webpulse.scss` and `webpulse.css`;
+  * `e2e/fixture_server.py`, `e2e/test_e2e.py`, `e2e/ui_test.py`, `demo/setup_presentation.py`;
+  * the docs.

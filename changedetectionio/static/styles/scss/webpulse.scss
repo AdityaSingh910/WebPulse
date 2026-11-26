@@ -1144,3 +1144,40 @@ body.wp-public .wp-topbar { display: none; }
 // Website list: job-listing monitors get their own badge
 .processor-badge.processor-badge-jobs { background: #ede9fe !important; color: #5b21b6 !important; border-color: transparent !important; }
 html[data-darkmode="true"] .processor-badge.processor-badge-jobs { background: #2e1065 !important; color: #ddd6fe !important; }
+
+// =====================================================================================================
+// Job listings pages (2026): /jobs/ and /jobs/<uuid> - openings, filters, history, chart
+// =====================================================================================================
+.wp-seg { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: auto;
+  a { padding: 3px 10px; border-radius: 999px; border: 1px solid var(--wp-border); font-size: 0.8rem; color: var(--wp-muted) !important;
+    text-decoration: none !important; background: var(--wp-surface);
+    &:hover { border-color: var(--wp-primary); }
+    &.active { background: var(--wp-primary-soft); border-color: var(--wp-primary); color: var(--wp-primary-ink) !important; font-weight: 700; } }
+  &.wp-seg--filters { margin-left: 0; }
+}
+.wp-badge { display: inline-block; margin-left: 6px; border-radius: 999px; padding: 0 8px; font-size: 0.7rem; font-weight: 700;
+  vertical-align: 1px; background: var(--wp-surface-2); color: var(--wp-muted); border: 1px solid var(--wp-border);
+  &.wp-badge--new { background: var(--wp-primary); color: var(--wp-surface); border-color: transparent; }
+  &.wp-badge--removed { background: var(--wp-danger-soft); color: var(--wp-danger); border-color: transparent; } }
+.wp-delta { font-weight: 700; font-size: 0.78rem; color: var(--wp-muted);
+  &.wp-delta--add { color: var(--wp-success); } &.wp-delta--del { color: var(--wp-danger); } }
+.wp-new-count { color: var(--wp-primary); }
+.wp-changes { list-style: none; margin: 4px 0 0; padding: 0; font-size: 0.82rem; line-height: 1.5;
+  del { color: var(--wp-danger); } ins { color: var(--wp-success); text-decoration: none; } }
+.wp-jobtable { tr.is-removed td { color: var(--wp-muted); } tr.is-removed strong { text-decoration: line-through; color: var(--wp-muted); }
+  td:first-child { min-width: 220px; } }
+.wp-timeline { list-style: none; margin: 0; padding: 0 0 0 14px; border-left: 2px solid var(--wp-border); display: flex; flex-direction: column; gap: 12px;
+  > li { position: relative; font-size: 0.86rem;
+    &::before { content: ''; position: absolute; left: -20px; top: 5px; width: 10px; height: 10px; border-radius: 50%; background: var(--wp-primary); border: 2px solid var(--wp-surface); } }
+  .wp-timeline-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; .wp-badge { margin-left: 0; } } }
+.wp-jobchart { margin: 0;
+  svg { width: 100%; height: auto; max-height: 220px; display: block; }
+  .grid { stroke: var(--wp-border); stroke-width: 1; }
+  .tick { fill: var(--wp-muted); font-size: 11px; }
+  .line { fill: none; stroke: var(--wp-primary); stroke-width: 2; stroke-linejoin: round; }
+  .dot { fill: var(--wp-primary); stroke: var(--wp-surface); stroke-width: 2; }
+  .hit { fill: transparent; }
+  .pt:hover .dot { r: 6; } }
+.wp-jobcard h3 a { color: var(--wp-ink); }
+.wp-jobs .wp-trunc { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media only screen and (max-width: $desktop-wide-breakpoint) { .wp-seg { margin-left: 0; } }

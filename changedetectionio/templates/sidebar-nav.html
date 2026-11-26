@@ -2,7 +2,7 @@
 {%- set ep = request.endpoint or '' -%}
 {%- set jobs_group = job_listings_group|default('Job listings') -%}
 {%- set on_products = ep == 'watchlist.index' and request.args.get('processor') == 'restock_diff' -%}
-{%- set on_jobs = ep == 'watchlist.index' and (request.args.get('tag') or '').strip().lower() == jobs_group.lower() -%}
+{%- set on_jobs = ep.startswith('jobs.') or (ep == 'watchlist.index' and (request.args.get('tag') or '').strip().lower() == jobs_group.lower()) -%}
 <div class="wp-sidebar-inner">
     <a class="wp-brand" href="{{ url_for('home.home_page') }}" title="WebPulse">
         <img class="wp-brand-mark" src="{{ url_for('static_content', group='images', filename='webpulse-mark.svg') }}" alt="" width="34" height="34">
@@ -23,7 +23,7 @@
         <a href="{{ url_for('watchlist.index', processor='restock_diff') }}" class="wp-nav-item {% if on_products %}active{% endif %}">
             <i data-feather="tag"></i><span>{{ _('Products') }}</span>
         </a>
-        <a href="{{ url_for('watchlist.index', tag=jobs_group) }}" class="wp-nav-item {% if on_jobs %}active{% endif %}">
+        <a href="{{ url_for('jobs.overview') }}" class="wp-nav-item {% if on_jobs %}active{% endif %}">
             <i data-feather="briefcase"></i><span>{{ _('Job listings') }}</span>
         </a>
         <a href="{{ url_for('settings.notifications.index') }}" class="wp-nav-item {% if ep.startswith('settings.notifications') or ep == 'settings.notification_logs' %}active{% endif %}">

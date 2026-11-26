@@ -91,12 +91,10 @@ def construct_blueprint(datastore: ChangeDetectionStore, update_q, queuedWatchMe
     @login_optionally_required
     def form_quick_watch_add():
         from changedetectionio import forms
-        # WebPulse: "Track jobs" on Home is the normal website watcher (text_json_diff) put in the
-        # "Job listings" group, optionally limited to one part of the page and to lines with keywords.
+        # WebPulse: "Track jobs" on Home adds a job_listings watch (processors/job_listings) in the "Job listings"
+        # group, optionally limited to one part of the page (CSS selector) and to job titles with keywords.
         formdata = request.form.copy()
         is_jobs = formdata.get('processor') == 'job_listings'
-        if is_jobs:
-            formdata['processor'] = 'text_json_diff'
         form = forms.quickWatchForm(formdata)
 
         if not form.validate():
@@ -115,8 +113,6 @@ def construct_blueprint(datastore: ChangeDetectionStore, update_q, queuedWatchMe
         tags = request.form.get('tags', '').strip()
         if is_jobs:
             tags = ', '.join(t for t in [tags, JOB_LISTINGS_GROUP] if t)
-            # New, removed and changed job lines are all reported
-            extras.update({'filter_text_added': True, 'filter_text_removed': True, 'filter_text_replaced': True})
             rule = job_keywords_rule(request.form.get('job_keywords', ''))
             if rule:
                 extras['extract_text'] = [rule]
@@ -162,7 +158,7 @@ def construct_blueprint(datastore: ChangeDetectionStore, update_q, queuedWatchMe
                       gettext("Website added - WebPulse is reading it now."))
 
         if is_jobs:
-            return redirect(url_for('watchlist.index', tag=JOB_LISTINGS_GROUP))
+            return redirect(url_for('jobs.job_page', uuid=new_uuid) if new_uuid else url_for('jobs.overview'))
         if processor == 'restock_diff' and not request.args.get('tag'):
             return redirect(url_for('watchlist.index', processor='restock_diff'))
         return redirect(url_for('watchlist.index', tag=request.args.get('tag','')))

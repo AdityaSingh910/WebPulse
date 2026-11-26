@@ -31,7 +31,7 @@ The Home page is organised around six things people monitor:
 | Website monitoring | Each page is checked on a schedule; the change history shows added text in green and removed text in red. You can limit a watch to one part of a page |
 | Product price tracking | The price is read from schema.org JSON-LD, microdata or a CSS selector, and every change is recorded |
 | Stock availability | Alerts when a product sells out or comes back in stock |
-| Job listing monitoring | The job list of a careers page or job board (CSS selector), filtered to the roles you care about (keywords). New, changed and removed jobs are reported. This uses the same change detector as websites |
+| Job listing monitoring | Each opening on a careers page or job board (Lever, Greenhouse, schema.org JobPosting or any page with a CSS selector) is read with its title, location, type and apply link, filtered by keywords, and compared by its job link: new, removed and changed openings, a New badge, first detected / last seen, an openings chart and the job history |
 | Historical price analytics | A price/stock chart, lowest / highest / average, "cheaper than N % of recorded prices", and XLSX export |
 | Notifications | **Email** (Gmail, Outlook, … with an app password) and **Telegram** (your own bot), set up on one page with "Save and send test", plus a history of every message sent |
 

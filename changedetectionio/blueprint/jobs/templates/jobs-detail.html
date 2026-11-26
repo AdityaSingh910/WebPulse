@@ -1,0 +1,120 @@
+{# WebPulse openings of one careers page (2026, written for the simplified fork of changedetection.io, Apache-2.0) #}
+{% extends 'base.html' %}
+{% set s = c.summary %}
+{% block content %}
+<div class="wp-page wp-jobs">
+  {% if is_demo_watch(w) %}<p class="wp-banner wp-banner--demo"><i data-feather="sliders"></i><span><strong>{{ _('Controlled demonstration.') }}</strong> {{ _('This careers page belongs to WebPulse’s own demo site; its openings are changed with the Controlled demo buttons.') }}</span></p>{% endif %}
+
+  <section class="wp-card wp-panel">
+    <header class="wp-panel-head"><span class="wp-ico"><i data-feather="briefcase"></i></span>
+      <h2>{{ c.company }}</h2>
+      {% if w.get('last_error') %}<span class="wp-status wp-status--bad">{{ _('Last check failed') }}</span>
+      {% elif state.baseline_at %}<span class="wp-status wp-status--on">{{ _('Monitoring') }}</span>{% endif %}</header>
+    <p class="wp-small wp-muted wp-trunc"><a href="{{ w.link }}" target="_blank" rel="noopener noreferrer">{{ w.url }}</a></p>
+    {% if w.get('last_error') %}<p class="wp-banner wp-banner--warn"><i data-feather="alert-triangle"></i><span>{{ w.get('last_error') }}</span></p>{% endif %}
+
+    <div class="wp-stats wp-stats--4">
+      <div><strong>{{ s.active }}</strong><span>{{ _('active openings') }}</span></div>
+      <div class="{{ 'is-new' if s.new }}"><strong>{{ s.new }}</strong><span>{{ _('new') }}</span></div>
+      <div class="{{ 'is-bad' if s.removed }}"><strong>{{ s.removed }}</strong><span>{{ _('removed') }}</span></div>
+      <div><strong>{{ s.modified }}</strong><span>{{ _('changed') }}</span></div>
+    </div>
+    <dl class="wp-dl wp-dl--tight wp-small">
+      <dt>{{ _('Last checked') }}</dt><dd>{{ w.last_checked|format_timestamp_timeago }}{% if state.last_success %} · {{ _('last successful read') }} {{ state.last_success|format_unix_ts }}{% endif %}</dd>
+      <dt>{{ _('Monitoring since') }}</dt><dd>{{ state.baseline_at|format_unix_ts if state.baseline_at else _('not read yet') }}</dd>
+      <dt>{{ _('How the openings are read') }}</dt><dd>{{ state.strategy or '—' }}{% if state.last_found is not none %} · {{ _('%(found)s openings on the page, %(matched)s match the keywords', found=state.last_found, matched=state.last_matched) }}{% endif %}</dd>
+    </dl>
+    <div class="wp-form-actions">
+      <form method="POST" action="{{ url_for('jobs.check_now', uuid=w.uuid) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="wp-btn" type="submit"><i data-feather="refresh-cw"></i>{{ _('Check now') }}</button></form>
+      <a class="wp-btn wp-btn--ghost" href="{{ url_for('ui.ui_edit.edit_page', uuid=w.uuid) }}"><i data-feather="settings"></i>{{ _('Settings') }}</a>
+      {% if w.history_n >= 2 %}<a class="wp-btn wp-btn--ghost" href="{{ url_for('ui.ui_diff.diff_history_page', uuid=w.uuid, raw=1) }}">{{ _('Text versions') }}</a>{% endif %}
+    </div>
+    <details class="wp-more">
+      <summary>{{ _('Only track jobs mentioning…') }}{% if c.keywords %} ({{ c.keywords|join(', ') }}){% elif w.get('extract_text') %} ({{ _('custom rule') }}){% endif %}</summary>
+      <form method="POST" action="{{ url_for('jobs.set_keywords', uuid=w.uuid) }}" class="wp-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label for="job_keywords">{{ _('Keywords in the job title') }}</label>
+        <div class="wp-inline"><input type="text" id="job_keywords" name="job_keywords" value="{{ (c.keywords or [])|join(', ') }}" placeholder="engineer, developer, data, intern">
+          <button class="wp-btn" type="submit">{{ _('Save') }}</button></div>
+        <small>{{ _('Separate words with commas; plurals and -ing/-ship forms are included (“intern” also keeps “Internship”). Leave empty to track every opening. Changing the keywords starts a new baseline - it does not count as new or removed jobs.') }}</small>
+      </form>
+    </details>
+  </section>
+
+  <section class="wp-card wp-panel" id="openings">
+    <header class="wp-panel-head"><h2>{{ _('Openings') }}</h2>
+      <nav class="wp-seg" aria-label="{{ _('Period') }}">
+        {% for p in periods %}<a href="{{ url_for('jobs.job_page', uuid=w.uuid, show=show, days=p) }}#openings" class="{{ 'active' if days == p }}">{{ _('%(n)s days', n=p) if p else _('All time') }}</a>{% endfor %}
+      </nav></header>
+    <nav class="wp-seg wp-seg--filters" aria-label="{{ _('Show') }}">
+      {% set labels = {'all': _('All') ~ ' (' ~ s.known ~ ')', 'new': _('New') ~ ' (' ~ s.new ~ ')', 'active': _('Active') ~ ' (' ~ s.active ~ ')', 'removed': _('Removed') ~ ' (' ~ s.removed ~ ')', 'modified': _('Modified') ~ ' (' ~ s.modified ~ ')'} %}
+      {% for k in ['all', 'new', 'active', 'removed', 'modified'] %}<a href="{{ url_for('jobs.job_page', uuid=w.uuid, show=k, days=days) }}#openings" class="{{ 'active' if show == k }}">{{ labels[k] }}</a>{% endfor %}
+    </nav>
+    {% if jobs %}
+    <div class="wp-table-wrap"><table class="wp-table wp-jobtable">
+      <thead><tr><th>{{ _('Job') }}</th><th>{{ _('Location') }}</th><th>{{ _('Type') }}</th><th>{{ _('First detected') }}</th><th>{{ _('Last seen') }}</th><th></th></tr></thead>
+      <tbody>
+      {% for j in jobs %}
+        <tr class="{{ 'is-removed' if j.status == 'removed' }}">
+          <td><strong>{{ j.title }}</strong>
+            {% if is_new(j) %}<span class="wp-badge wp-badge--new">{{ _('New') }}</span>{% endif %}
+            {% if j.status == 'removed' %}<span class="wp-badge wp-badge--removed">{{ _('Removed') }} {{ j.removed_at|format_unix_ts }}</span>{% endif %}
+            {% if j.modified_at %}<span class="wp-badge">{{ _('Changed') }} {{ j.modified_at|format_unix_ts }}</span>{% endif %}
+            <div class="wp-small wp-muted">{{ [j.team, j.company if j.company != c.company else '']|select|join(' · ') }}</div>
+            {% if j.modified_at and j.changes %}<ul class="wp-changes">{% for ch in j.changes[-3:] %}<li>{{ ch.field|replace('_', ' ') }}: <del>{{ ch.old or '—' }}</del> → <ins>{{ ch.new or '—' }}</ins></li>{% endfor %}</ul>{% endif %}</td>
+          <td>{{ j.location or '—' }}</td>
+          <td>{{ j.employment_type or '—' }}</td>
+          <td class="wp-nowrap">{{ j.first_seen|format_unix_ts }}{% if j.baseline %}<div class="wp-small wp-muted">{{ _('starting point') }}</div>{% endif %}</td>
+          <td class="wp-nowrap">{{ j.last_seen|format_unix_ts }}</td>
+          <td>{% if j.url %}<a class="wp-btn wp-btn--ghost wp-btn--sm" href="{{ j.url }}" target="_blank" rel="noopener noreferrer">{{ _('Apply') if j.status == 'active' else _('Old link') }}</a>{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody></table></div>
+    {% else %}<p class="wp-empty">{% if not state.baseline_at %}{{ _('WebPulse has not read this careers page yet. Press “Check now”.') }}{% else %}{{ _('No openings in this view.') }}{% endif %}</p>{% endif %}
+    <p class="wp-note"><i data-feather="info"></i>{{ _('An opening is recognised by its own job link, so a different order on the page is not a change. “New” = first seen after monitoring started, in the chosen period.') }}</p>
+  </section>
+
+  <section class="wp-card wp-panel" id="history">
+    <header class="wp-panel-head"><span class="wp-ico"><i data-feather="bar-chart-2"></i></span><h2>{{ _('Active openings over time') }}</h2></header>
+    {% if chart and chart.markers|length >= 1 %}
+    <figure class="wp-jobchart">
+      <svg viewBox="0 0 {{ chart.w }} {{ chart.h }}" role="img" aria-label="{{ _('Number of active openings at each check that changed something') }}">
+        {% for t in chart.yticks %}<line class="grid" x1="{{ chart.x0 }}" x2="{{ chart.x1 }}" y1="{{ t.y }}" y2="{{ t.y }}"/><text class="tick" x="{{ chart.x0 - 6 }}" y="{{ t.y + 4 }}" text-anchor="end">{{ t.v }}</text>{% endfor %}
+        <path class="line" d="{{ chart.path }}"/>
+        {% for m in chart.markers %}<g class="pt"><circle class="hit" cx="{{ m.x }}" cy="{{ m.y }}" r="12"/><circle class="dot" cx="{{ m.x }}" cy="{{ m.y }}" r="4"/>
+          <title>{{ m.at|format_unix_ts }}: {{ m.active }} {{ _('active') }}{% if m.added %}, +{{ m.added }} {{ _('new') }}{% endif %}{% if m.removed %}, −{{ m.removed }} {{ _('removed') }}{% endif %}{% if m.modified %}, ~{{ m.modified }} {{ _('changed') }}{% endif %}</title></g>{% endfor %}
+        <text class="tick" x="{{ chart.x0 }}" y="{{ chart.h - 6 }}">{{ chart.t0|format_unix_ts('%d %b %H:%M') }}</text>
+        <text class="tick" x="{{ chart.x1 }}" y="{{ chart.h - 6 }}" text-anchor="end">{{ _('now') }}</text>
+      </svg>
+    </figure>
+    {% else %}<p class="wp-empty">{{ _('The chart starts after the first successful check.') }}</p>{% endif %}
+
+    <h3 class="wp-h3">{{ _('Additions and removals per day') }}</h3>
+    {% if daily %}
+    <div class="wp-table-wrap"><table class="wp-table">
+      <thead><tr><th>{{ _('Day') }}</th><th>{{ _('New') }}</th><th>{{ _('Removed') }}</th><th>{{ _('Changed') }}</th><th>{{ _('Active at the end of the day') }}</th></tr></thead>
+      <tbody>{% for r in daily %}<tr><td>{{ r.day }}</td><td>{{ '+%d'|format(r.added) if r.added else '0' }}</td><td>{{ '−%d'|format(r.removed) if r.removed else '0' }}</td><td>{{ r.modified }}</td><td>{{ r.active }}</td></tr>{% endfor %}</tbody>
+    </table></div>
+    {% else %}<p class="wp-empty">{{ _('No openings have been added, removed or changed since monitoring started.') }}</p>{% endif %}
+
+    <h3 class="wp-h3">{{ _('Job history') }}</h3>
+    {% if events %}
+    <ol class="wp-timeline">
+      {% for e in events %}
+      <li><div class="wp-timeline-head"><strong>{{ e.at|format_unix_ts }}</strong>
+          {% if e.kind == 'baseline' %}<span class="wp-badge">{{ _('Starting point') if e.reason == 'first' else _('New starting point (selector or keywords changed)') }}</span>
+            <span class="wp-muted">{{ _('%(n)s openings recorded', n=e.active) }}</span>
+          {% else %}<span class="wp-muted">{{ _('%(n)s active afterwards', n=e.active) }}</span>{% endif %}</div>
+        {% if e.added %}<ul class="wp-changes">{% for j in e.added %}<li><span class="wp-delta wp-delta--add">{{ _('New') }}</span> {{ j.title }}{% if j.location %} · {{ j.location }}{% endif %}{% if j.url %} <a href="{{ j.url }}" target="_blank" rel="noopener noreferrer">{{ _('link') }}</a>{% endif %}</li>{% endfor %}</ul>{% endif %}
+        {% if e.removed %}<ul class="wp-changes">{% for j in e.removed %}<li><span class="wp-delta wp-delta--del">{{ _('Removed') }}</span> {{ j.title }}{% if j.location %} · {{ j.location }}{% endif %}</li>{% endfor %}</ul>{% endif %}
+        {% if e.modified %}<ul class="wp-changes">{% for j in e.modified %}<li><span class="wp-delta">{{ _('Changed') }}</span> {{ j.title }}:
+            {% for ch in j.changes %}{{ ch.field|replace('_', ' ') }} <del>{{ ch.old or '—' }}</del> → <ins>{{ ch.new or '—' }}</ins>{% if not loop.last %}; {% endif %}{% endfor %}</li>{% endfor %}</ul>{% endif %}
+      </li>
+      {% endfor %}
+    </ol>
+    {% if events_total > events|length %}<p class="wp-note">{{ _('Showing the latest %(n)s of %(t)s entries.', n=events|length, t=events_total) }}</p>{% endif %}
+    {% else %}<p class="wp-empty">{{ _('Nothing recorded yet.') }}</p>{% endif %}
+  </section>
+</div>
+{% endblock %}

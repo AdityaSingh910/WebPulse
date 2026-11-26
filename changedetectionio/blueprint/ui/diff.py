@@ -94,6 +94,10 @@ def construct_blueprint(datastore: ChangeDetectionStore):
             flash(gettext("No history found for the specified link, bad link?"), "error")
             return redirect(url_for('watchlist.index'))
 
+        # WebPulse: job-listing monitors have their own page (openings, not page text); ?raw=1 keeps the text diff
+        if watch.get('processor') == 'job_listings' and not request.args.get('raw'):
+            return redirect(url_for('jobs.job_page', uuid=uuid))
+
         dates = list(watch.history.keys())
         if not dates or len(dates) < 2:
             flash(gettext("Not enough history (2 snapshots required) to show difference page for this watch."), "error")

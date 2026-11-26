@@ -57,8 +57,11 @@ watched too.
 
 **Job listings (group "Job listings")**
 
+Each opening is read on its own (title, location, type, team, apply link) and compared by its job link (Phase 13).
+
 | Source | Why it was chosen | What is extracted | Filters | Checked every |
 |---|---|---|---|---|
+| Hevo Data careers on the Lever public job board<br>`https://jobs.lever.co/hevodata` | A Bengaluru/Pune data-integration company | 18 technical openings of 42 on 26 Nov, e.g. "SDE II · Bangalore, India · Full time · On-site" | Read as a Lever board; keywords engineer / developer / intern / SDE / software / backend / DevOps | default |
 | HackerRank careers on the Greenhouse public job board<br>`https://job-boards.greenhouse.io/hackerrank` | Bangalore tech roles. A public job board meant to be read; robots.txt allows it | 17 job titles on the first check, e.g. "Senior Backend Engineer", "Lead Data Engineer", "DevOps Engineer II" | Only `.job-post` (the job list); only lines with engineer / developer / software / backend / data / python / intern / sde | 12 hours |
 | Meesho careers on the Lever public job board<br>`https://jobs.lever.co/meesho` | A large Indian e-commerce company. robots.txt allows `User-agent: *` | 10 technical titles out of about 48 jobs, e.g. "Data Scientist III", "Engineering Manager - Platform" | Only `.posting-title`; same keywords | 12 hours |
 | Python.org job board<br>`https://www.python.org/jobs/` | Python/backend jobs worldwide, updated several times a week. robots.txt allows it | 22 jobs (title and location), e.g. "Senior Image Analysis Software Engineer - Detroit" | Only the job list (`.list-recent-jobs h2 a`) | 6 hours |
@@ -70,7 +73,8 @@ watched too.
 
 **Where to click:**
 * **Products** → a row: price, stock and "Price history" (the chart);
-* **Job listings** → a row: "View page" (the current jobs) and "View changes" (what changed and when);
+* **Job listings** → a company → **Openings**: every opening with New / Removed / Modified filters, first detected,
+  last seen, Apply, the chart of active openings and the job history;
 * **Notifications** → **Notification history**.
 
 **How changes are detected.** On every check WebPulse fetches the page, either directly or through Edge.
@@ -126,17 +130,19 @@ password at Google, or send `/revoke` to BotFather.
 3. **Static and JavaScript reading.** The same Decathlon product is watched twice: once read directly and once with
    a real browser. Both give the same price. For a page that only a browser can read, open "Quotes to Scrape -
    JavaScript page via plain HTTP" (no quotes) next to "… JavaScript-rendered page" (quotes visible).
-4. **Real job listings.** Open **Job listings** and then a careers page. "View page" shows the extracted job list
-   (titles only, technical roles only). If a real change was recorded in the past days, show it in
-   **View changes**, with its date and time.
+4. **Real job listings.** Open **Job listings**: one card per company with active / new / removed / changed counts.
+   Open Hevo Data: each technical opening with location, type, first detected and an Apply link. Any real new or
+   removed opening recorded in the past days has a New badge or appears under Removed, with its date and time.
 5. **Controlled demo, live.** Open **Controlled demo**:
    1. Press **Drop the price**. A few seconds later the new price appears, and an email/Telegram message arrives.
       Open "Price history" to show the new point in the chart.
    2. Press **Sell out**, then **Restock**. Each one sends an alert.
-   3. Press **Publish a new job**. The new job appears in "View changes" (green) and an alert is sent.
+   3. Press **Publish a new job**, then **Openings**: the job has a **New** badge and an alert is sent. Press
+      **Reorder the jobs**: nothing changes, because openings are compared by their job link.
    4. Press **Publish a non-technical job**. No alert is sent, because the keyword filter ignores it. The careers
       page's visitor counter and clock change on every visit, and WebPulse ignores those too.
-   5. Press **Remove a job** or **Change a job**. These show up in red, or red and green.
+   5. Press **Change a job** (the same opening becomes *Modified*: Bengaluru → Hybrid, Bengaluru) or **Remove a job**
+      (it appears under *Removed* with the time).
 6. **Notifications → Notification history.** Every message sent is listed, with time, website, channel and result.
 7. **Settings.** Point out how little is visible, and that "Show technical settings" reveals the rest: page
    reading, proxies, filters, REST API and backups.

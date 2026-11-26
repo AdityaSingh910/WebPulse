@@ -507,7 +507,11 @@ async def async_update_worker(worker_id, q, notification_q, app, datastore, exec
                             # Send notifications on second+ check
                             if watch.history_n >= 2:
                                 logger.info(f"Change detected in UUID {uuid} - {watch['url']}")
-                                if not watch.get('notification_muted'):
+                                # WebPulse: the job_listings processor saves a baseline version (filters changed)
+                                # without an alert, see processors/job_listings/processor.py
+                                if getattr(update_handler, 'suppress_change_notification', False):
+                                    logger.info(f"UUID {uuid} - baseline version saved, no notification")
+                                elif not watch.get('notification_muted'):
                                     await send_content_changed_notification(uuid, notification_q, datastore)
 
                     except Exception as e:

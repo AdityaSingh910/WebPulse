@@ -6,7 +6,7 @@
     {% for w in watches %}
     {%- set r = w.get('restock') or {} -%}
     <li>
-      <span class="wp-trunc"><a href="{{ (url_for('ui.ui_diff.diff_history_page', uuid=w.uuid) if w.history_n >= 2 else url_for('ui.ui_preview.preview_page', uuid=w.uuid)) }}">{{ w.label }}</a>
+      <span class="wp-trunc"><a href="{{ url_for('jobs.job_page', uuid=w.uuid) if w.get('processor') == 'job_listings' else (url_for('ui.ui_diff.diff_history_page', uuid=w.uuid) if w.history_n >= 2 else url_for('ui.ui_preview.preview_page', uuid=w.uuid)) }}">{{ w.label }}</a>
         <span class="wp-muted wp-small">· {{ _('checked') }} {{ w.last_checked|format_timestamp_timeago }}
           · {{ w.history_n }} {{ _('versions saved') }}</span></span>
       <span>
@@ -15,7 +15,11 @@
           {% if r.get('in_stock') is true %}<span class="wp-status wp-status--on">{{ _('In stock') }}</span>{% elif r.get('in_stock') is false %}<span class="wp-status wp-status--bad">{{ _('Out of stock') }}</span>{% endif %}
         {% endif %}
         {% if w.get('last_error') %}<span class="wp-status wp-status--bad" title="{{ w.get('last_error') }}">{{ _('Error') }}</span>{% endif %}
+        {% if w.get('processor') == 'job_listings' %}
+        <a class="wp-btn wp-btn--ghost wp-btn--sm" href="{{ url_for('jobs.job_page', uuid=w.uuid) }}">{{ _('Openings') }}</a>
+        {% else %}
         <a class="wp-btn wp-btn--ghost wp-btn--sm" href="{{ (url_for('ui.ui_diff.diff_history_page', uuid=w.uuid) if w.history_n >= 2 else url_for('ui.ui_preview.preview_page', uuid=w.uuid)) }}">{% if w.history_n < 2 %}{{ _('View page') }}{% elif w.get('processor') == 'restock_diff' %}{{ _('Price history') }}{% else %}{{ _('View changes') }}{% endif %}</a>
+        {% endif %}
       </span>
     </li>
     {% endfor %}
@@ -69,6 +73,7 @@
         <button class="wp-btn wp-btn--ghost" name="action" value="modify_job"><i data-feather="edit-2"></i>{{ _('Change a job') }}</button>
         <button class="wp-btn wp-btn--ghost" name="action" value="remove_job"><i data-feather="minus"></i>{{ _('Remove a job') }}</button>
         <button class="wp-btn wp-btn--ghost" name="action" value="add_irrelevant_job" title="{{ _('Shows the keyword filter at work') }}"><i data-feather="filter"></i>{{ _('Publish a non-technical job') }}</button>
+        <button class="wp-btn wp-btn--ghost" name="action" value="shuffle_jobs" title="{{ _('Shows that a different order is not a change') }}"><i data-feather="shuffle"></i>{{ _('Reorder the jobs') }}</button>
       </form>
       <p class="wp-note"><i data-feather="info"></i>{{ _('The careers page also has a visitor counter and a clock that change on every visit. WebPulse watches only the job list, so those changes are ignored.') }}</p>
       <h3 class="wp-h3">{{ _('What WebPulse has seen') }}</h3>

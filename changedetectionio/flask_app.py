@@ -1475,6 +1475,11 @@ def changedetection_app(config=None, datastore_o=None):
 
     app.register_blueprint(demo_lab.construct_blueprint(datastore, update_q, queuedWatchMetaData, worker_pool), url_prefix='/demo')
 
+    # WebPulse structured job-listing pages (processors/job_listings, see blueprint/jobs)
+    import changedetectionio.blueprint.jobs as jobs_pages
+
+    app.register_blueprint(jobs_pages.construct_blueprint(datastore, update_q, queuedWatchMetaData, worker_pool), url_prefix='/jobs')
+
     # After the built-in blueprints, so a plugin can't take over a core blueprint name
     from changedetectionio.pluggy_interface import register_plugin_blueprints
 

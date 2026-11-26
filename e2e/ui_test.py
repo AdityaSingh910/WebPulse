@@ -341,7 +341,7 @@ def run():
         m.close()
 
         # ---- U23: every internal link on every page resolves ----
-        pages = ['/', '/watches/', '/watches/?processor=restock_diff', '/tags/list', '/imports/import', '/settings', '/settings/notifications/', '/settings/notifications/apprise', '/settings/notification-logs', '/demo/', '/watches/?tag=Job%20listings',
+        pages = ['/', '/watches/', '/watches/?processor=restock_diff', '/tags/list', '/imports/import', '/settings', '/settings/notifications/', '/settings/notifications/apprise', '/settings/notification-logs', '/demo/', '/watches/?tag=Job%20listings', '/jobs/',
                  '/queue', '/backups/create', f'/edit/{uuid}', f'/diff/{uuid}', f'/preview/{uuid}', f'/diff/{puuid}', f'/edit/{puuid}']
         links, external = set(), set()
         for pth in pages:
@@ -398,15 +398,18 @@ def run():
         requests.get(f'{BASE}/api/v1/watch/{juuid}?recheck=1', headers=api()[1])
         time.sleep(6)
         w2 = wait_history(juuid, 2, timeout=10)
-        page.goto(f'{BASE}/diff/{juuid}', wait_until='networkidle')
-        diff = page.locator('#difference').inner_text() if page.locator('#difference').count() else ''
-        shot(page, '12-job-diff')
+        page.goto(f'{BASE}/diff/{juuid}', wait_until='networkidle')     # "View changes" -> the openings page
+        on_openings = page.url.rstrip('/').endswith(f'/jobs/{juuid}')
+        page.goto(f'{BASE}/jobs/{juuid}?show=new', wait_until='networkidle')
+        diff = page.locator('#openings').inner_text() if page.locator('#openings').count() else ''
+        new_badge = page.locator('#openings tr:has-text("Platform Engineer") .wp-badge--new').count() == 1
+        shot(page, '12-job-openings')
         page.goto(BASE + '/watches/?tag=Job%20listings', wait_until='networkidle')
         badge = page.locator(f'tr[data-watch-uuid="{juuid}"] .processor-badge-jobs').count() == 1
         check('U32', 'Track jobs: new job detected, non-technical job and page noise ignored, listed under Job listings',
               on_jobs_page and int(w.get('history_n') or 0) == 2 and int(w2.get('history_n') or 0) == 2 and 'Platform Engineer' in diff
-              and 'Office Administrator' not in diff and badge,
-              f"jobs_page={on_jobs_page} history={w.get('history_n')}->{w2.get('history_n')} badge={badge} diff={diff[:80]!r}")
+              and 'Office Administrator' not in diff and badge and on_openings and new_badge,
+              f"jobs_page={on_jobs_page} history={w.get('history_n')}->{w2.get('history_n')} badge={badge} openings={on_openings} new={new_badge} diff={diff[:80]!r}")
 
         # ---- U33: controlled demo - a price drop made on the demo site is detected by WebPulse ----
         _, h = api()

@@ -48,7 +48,9 @@
                     </div>
                 </td>
                 <td class="watch-processor">
-                    {%- if job_listings_tag_uuid and job_listings_tag_uuid in (watch.get('tags') or []) and watch['processor'] != 'restock_diff' -%}
+                    {%- if watch['processor'] == 'job_listings' -%}
+                        <a href="{{ url_for('jobs.job_page', uuid=watch.uuid) }}" class="processor-badge processor-badge-jobs" title="{{ _('Job listing monitoring') }}">{{ _('Jobs') }}</a>
+                    {%- elif job_listings_tag_uuid and job_listings_tag_uuid in (watch.get('tags') or []) and watch['processor'] != 'restock_diff' -%}
                         <a href="{{ url_for('watchlist.index', tag=job_listings_group) }}" class="processor-badge processor-badge-jobs" title="{{ _('Job listing monitoring') }}">{{ _('Jobs') }}</a>
                     {%- elif watch['processor'] and watch['processor'] in processor_badge_texts -%}
                         <a href="{{ url_for('watchlist.index', tag=active_tag_uuid, processor=watch['processor']) }}"  class="processor-badge processor-badge-{{ watch['processor'] }}{{ ' active' if active_processor == watch['processor'] else '' }}"
@@ -181,7 +183,7 @@
                             formaction="{{ url_for('ui.form_watch_checknow', uuid=watch.uuid, tag=request.args.get('tag')) }}"
                             data-op='recheck' class="ajax-op recheck cdio-btn cdio-btn--primary cdio-btn--sm"><i data-feather="refresh-cw"></i>{{ _('Check now') }}</button>
                     <a href="{{ url_for('ui.ui_edit.edit_page', uuid=watch.uuid, tag=active_tag_uuid)}}#general" class="cdio-btn cdio-btn--primary cdio-btn--sm">{{ _('Edit') }}</a>
-                    <a href="{{ url_for('ui.ui_diff.diff_history_page', uuid=watch.uuid)}}" {{target_attr}} class="cdio-btn cdio-btn--primary cdio-btn--sm history-link ai-history-btn" style="display: none;" data-uuid="{{ watch.uuid }}" data-processor-chart-url="{{ url_for('ui.ui_diff.diff_history_page_processor_chart', uuid=watch.uuid, context='watchlist') }}"><span class="btn-label-history">{% if watch['processor'] == 'restock_diff' %}{{ _('Price history') }}{% else %}{{ _('View changes') }}{% endif %}</span></a>
+                    <a href="{{ url_for('ui.ui_diff.diff_history_page', uuid=watch.uuid)}}" {{target_attr}} class="cdio-btn cdio-btn--primary cdio-btn--sm history-link ai-history-btn" style="display: none;" data-uuid="{{ watch.uuid }}" data-processor-chart-url="{{ url_for('ui.ui_diff.diff_history_page_processor_chart', uuid=watch.uuid, context='watchlist') }}"><span class="btn-label-history">{% if watch['processor'] == 'restock_diff' %}{{ _('Price history') }}{% elif watch['processor'] == 'job_listings' %}{{ _('Openings') }}{% else %}{{ _('View changes') }}{% endif %}</span></a>
                     <a href="{{ url_for('ui.ui_preview.preview_page', uuid=watch.uuid)}}" {{target_attr}} class="cdio-btn cdio-btn--primary cdio-btn--sm preview-link" style="display: none;">{{ _('View page') }}</a>
                     </div>
                 </td>
