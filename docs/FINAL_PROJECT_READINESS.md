@@ -258,7 +258,7 @@ that case and now says the run is invalid. The foreground run above is the valid
   8199, Edge on 9222).
 * **Watches:** **62**: 53 real + 9 controlled demo; by processor 28 products, 19 websites, 15 job boards. None in
   error. No watch recreated, no history deleted.
-* **Commit:** see the reply that delivered this phase (`git log -1` on branch `simplified`).
+* **Commit:** `b498e6f5` "Phase 15: final readiness audit - security, reliability and startup fixes, final docs" (21 files, +1,359 / −24), parent `9d994343`.
 * **Files modified in Phase 15:**
   * code: `run.ps1`; `content_fetchers/playwright.py`, `content_fetchers/requests.py`;
     `processors/restock_diff/processor.py`;
