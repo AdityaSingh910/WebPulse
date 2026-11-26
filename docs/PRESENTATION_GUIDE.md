@@ -17,6 +17,11 @@ Open **http://127.0.0.1:5000**. One command starts three things:
 
 Press Ctrl+C in that window to stop all three.
 
+**Keep the laptop plugged in and stop it from sleeping** (Settings → System → Power: "When plugged in, put my
+device to sleep after: Never"). While Windows sleeps, WebPulse is frozen: no checks run, and a check that was
+running when the laptop fell asleep reports the sleep time as its duration. One night's log showed checks of about
+444 s for exactly this reason (see CHANGES.md, Phase 12). Overdue checks run as soon as the laptop wakes.
+
 Leave WebPulse running in the days before the presentation. Every real change it detects in that time is saved
 with its date and time, and you can show it immediately.
 

@@ -294,3 +294,19 @@ Amazon.in and Flipkart were not used: their robots.txt and terms forbid automate
   masking and webhook delivery; real delivery is confirmed by the user's own test message.
 * Custom SMTP servers log in with the part of the address before the @. Gmail, Outlook, Yahoo and Zoho are
   configured automatically.
+
+---
+
+## 10. Reliability audit (Phase 12)
+
+Measured findings and fixes are listed in CHANGES.md, Phase 12. In short:
+* the "444 s" checks were the laptop sleeping in the middle of a request (confirmed by Windows power events);
+* network-error retries were cut from 6 to 2 through upstream's own `REQUESTS_RETRY_MAX_COUNT`. A dead site now
+  holds a worker for 2–16 s instead of 31–67 s (5 s timeout);
+* links to websites with a single saved version no longer bounce;
+* the XXE unit tests now really test the XXE protection on Windows.
+
+Scheduling, priority, blocking, failure handling, persistence, price statistics, SSRF, API authentication and
+CSRF were all verified, with results recorded.
+
+**Tests:** e2e 96/96; unit 432 passed and 0 new failures.

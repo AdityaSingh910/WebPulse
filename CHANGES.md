@@ -491,3 +491,85 @@ recorded the blocked fetch's error; the check could previously race the worker.
     sass 1.77.8;
   * scripts: `run.ps1`, `e2e/fixture_server.py`, `e2e/run_e2e.ps1`, `e2e/test_e2e.py`, `e2e/ui_test.py`, `demo/seed_demo.py` and
     `demo/add_demo_site.py`.
+
+## Phase 12: reliability audit (measured), small fixes
+
+An audit of the running application. Each finding below was measured; nothing was changed on speculation.
+
+### Findings that needed no code change
+
+* **"Checks taking ~444 s".** All three happened at once, on three different workers, and finished within 2 s of
+  each other at 10:48:42–44. The Windows System log shows why: the laptop **woke from Modern Standby at 10:41:17
+  and went to sleep again at 10:41:20** (Kernel-Power events 507 and 42), then returned at 10:48:41
+  (Power-Troubleshooter event 1). The three HTTP requests had started at 10:41:19–20. The process was frozen for
+  7 min 20 s, so the reported duration is wall-clock time across the sleep; no timeout could fire while frozen.
+  Without sleep, the median check in the same log took 1.7 s. Two more checks of 25–36 s ran during Modern Standby,
+  when CPU and network are throttled. Advice: keep the laptop plugged in and stop it sleeping while WebPulse is
+  running for a demonstration.
+* **Scheduling.** A 10 s interval produced checks exactly 10 s apart (4 gaps, all 10 s).
+* **Priority queue.** A manual "Check now" (priority 1) finished in 0.3–0.7 s while six scheduled checks (priority
+  = epoch time) kept all three workers busy.
+* **Blocking.** Slow pages delay others only while every worker is busy, and only for as long as those pages take.
+* **Failure handling.** DNS failure, connection refused, HTTP 404 and timeouts are each recorded as the watch's
+  error, and the app keeps serving pages.
+* **Persistence.** After a restart, 21 of 21 watches kept the same number of versions, and the price state
+  (current, previous, stock) is unchanged.
+* **Price statistics.** `compute_price_summary()` matches a hand calculation: mean, quartiles, "cheaper than %" and
+  all-time low. Limitation: statistics are per saved version (a version is saved only when the price or stock
+  changes), not weighted by time.
+* **Security on the live instance.**
+  * The API answers 403 without a key or with a wrong key.
+  * Pages and API calls that change something need the CSRF token (400 without it).
+  * All three services listen on 127.0.0.1 only.
+  * Private addresses (127.0.0.1, localhost, 169.254.169.254 and 10.0.0.1) are refused **at fetch time**, as
+    upstream designed (the address is re-resolved when fetched). `file://` is refused when the watch is added.
+* **Notification credentials.** No password or token appears in the log or the history. Like upstream, they are
+  stored unencrypted in `changedetection.json`, protected by the Windows account's file permissions.
+
+### Fixes
+
+* **Network-error retries (`run.ps1` and `e2e/run_e2e.ps1`: `REQUESTS_RETRY_MAX_COUNT=2`).** The plain-HTTP fetcher
+  retries network errors 6 times by default, with about 31 s of exponential back-off. Its own comment says 3. A dead
+  website therefore held a worker far longer than the request timeout. Measured on a throw-away instance with a 5 s
+  timeout:
+
+  | Failure | 6 retries (upstream default) | 2 retries |
+  |---|---|---|
+  | DNS name does not exist | 31.2 s | 2.0 s |
+  | Connection refused | 45.5 s | 8.1 s |
+  | Site slower than the timeout | 66.5 s | 16.2 s |
+
+  With the default 45 s timeout, the worst case falls from about 346 s to 136 s per dead site. This uses upstream's
+  own setting, so the fetcher code is unchanged. A failed check is retried at the next scheduled interval anyway.
+* **Links to websites with one saved version** (`home.html`, `demo-lab.html`, `notifications-simple.html`). The
+  change-history page needs two versions and otherwise redirects to the list with "Not enough history". Links now
+  open the change page when there are 2 or more versions, and the current snapshot ("View page") before that. New
+  UI test U35 checks that every such link answers 200 without a redirect.
+* **XXE unit tests (`tests/unit/test_xml_security.py`).** On Windows the payload URI was `file://C:\…`, which lxml
+  rejects as invalid, so the XXE protection was never exercised. It now uses `Path.as_uri()`. A control experiment
+  confirms that a parser with entity resolution does read the file through the new payload, while WebPulse's
+  `xpath_filter` and `xpath1_filter` do not. Both tests now pass, so 8 known Windows failures remain, down from 10.
+* **`e2e/known_windows_unit_failures.txt`** now records the verified causes:
+  * 5 symlink tests need administrator rights or Windows Developer Mode;
+  * 2 tests use the pytest-flask live server, which needs `fork()`;
+  * 2 socket-stats tests are outdated **upstream** tests that fail on Linux too: upstream moved the "no browser
+    connected" check into `SignalHandler`.
+
+  The old note calling the socket-stats tests "timing dependent" was wrong.
+
+### Result
+
+**96/96 end-to-end checks:**
+* core 40;
+* persistence 5;
+* security 8;
+* browser 8;
+* UI 35, including the new U35.
+
+There were 0 errors in the app logs. Upstream unit tests: **432 passed** (2 more than before) and 0 new failures;
+the 8 remaining Windows failures are listed with their verified causes. Templates 35/35, imports 52/52.
+
+Files: `run.ps1`, `e2e/run_e2e.ps1`, `e2e/ui_test.py`, `e2e/known_windows_unit_failures.txt`,
+`changedetectionio/tests/unit/test_xml_security.py`, `blueprint/home/templates/home.html`,
+`blueprint/demo_lab/templates/demo-lab.html`, `blueprint/settings/notifications/__init__.py` and
+`notifications-simple.html`, `docs/PRESENTATION_GUIDE.md`, and `docs/SIMPLIFICATION_REPORT.md`.

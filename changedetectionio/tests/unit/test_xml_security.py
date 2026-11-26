@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Modified 2026 for the simplified (academic) fork of changedetection.io - optional features removed, see CHANGES.md
 
 # run from dir above changedetectionio/ dir
 # python3 -m pytest changedetectionio/tests/unit/test_xml_security.py
@@ -7,10 +8,13 @@ import pytest
 from changedetectionio import html_tools
 
 
-def _xxe_payload(file_path: str) -> str:
+def _xxe_payload(file_path) -> str:
+    # Path.as_uri() gives a valid file URI on every OS: file:///tmp/x on Linux, file:///C:/Users/x on Windows.
+    # The old "file://" + str(path) produced file://C:\Users\x on Windows, which lxml rejects as an invalid URI
+    # before it ever gets to the entity, so the test failed on Windows without testing the XXE protection.
     return f"""<?xml version="1.0"?>
 <!DOCTYPE root [
-  <!ENTITY xxe SYSTEM "file://{file_path}">
+  <!ENTITY xxe SYSTEM "{file_path.as_uri()}">
 ]>
 <root><item>&xxe;</item></root>"""
 

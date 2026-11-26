@@ -66,6 +66,10 @@ $env:LISTEN_HOST = '127.0.0.1'
 $env:DISABLE_VERSION_CHECK = 'true'   # no daily "phone home"
 $env:FETCH_WORKERS = "$Workers"       # concurrent fetch workers
 $env:PYTHONIOENCODING = 'utf-8'
+# Network-error retries of the plain-HTTP fetcher (upstream default 6, with ~31 s of back-off). Measured on this
+# laptop: a dead site held a worker for 31-67 s with 6 retries versus 2-16 s with 2 (see CHANGES.md, Phase 12).
+# A failed check is tried again at the next scheduled interval anyway.
+if (-not $env:REQUESTS_RETRY_MAX_COUNT) { $env:REQUESTS_RETRY_MAX_COUNT = '2' }
 Remove-Item Env:ALLOW_IANA_RESTRICTED_ADDRESSES -ErrorAction SilentlyContinue
 Remove-Item Env:ALLOW_FILE_URI -ErrorAction SilentlyContinue
 

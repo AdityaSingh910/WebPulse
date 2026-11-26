@@ -1,9 +1,17 @@
-# Unit-test failures observed on the UNMODIFIED upstream code (commit c74be04) on native Windows 11 / Python 3.12.
-# None are caused by the simplification; they are platform limitations:
-#  - symlink tests: os.symlink needs admin / Developer Mode on Windows (WinError 1314)
-#  - xml_security: lxml rejects 'file://C:\...' URIs built by the test (POSIX-style path assumption)
-#  - auth_decorator_order: uses pytest-flask live_server, which needs fork()
-#  - socket_stats / link_local_aaaa: timing and DNS-resolver dependent
+# Unit-test failures on native Windows 11 / Python 3.12. The reasons below were re-checked from the actual error
+# messages in Phase 12 (earlier notes were partly wrong). None is caused by the simplification:
+#  - 5 symlink tests: os.symlink needs administrator rights or Windows "Developer Mode" (WinError 1314). They pass
+#    if Developer Mode is switched on; the path-traversal code they test is unchanged from upstream.
+#  - test_fetch_url_gate ...link_local_aaaa...: an ERROR at set-up, not a failure. tests/conftest.py starts the
+#    pytest-flask live server for every test; on Windows (no fork) that fails once with "Can't pickle local object
+#    LiveServer.start.<locals>.worker" for the first test that triggers it.
+#  - 2 socket_stats tests: an outdated UPSTREAM test, failing on Linux too. Upstream moved the "no browser connected,
+#    skip the work" check from handle_watch_update() into SignalHandler (realtime/socket_server.py), but these tests
+#    still call handle_watch_update() directly.
+#  - test_auth_decorator_order: uses the live server (above); passes or fails depending on test order.
+# Fixed in Phase 12 and removed from this list: the 2 test_xml_security XXE tests built an invalid Windows file URI
+# ("file://C:\..."), so lxml rejected the payload before the XXE protection was ever tested. They now use
+# Path.as_uri() and pass.
 tests/unit/test_fetch_url_gate.py::TestFetchUrlGate::test_junk_link_local_aaaa_record_does_not_block_a_public_site
 tests/unit/test_processor_config_path_traversal.py::TestWatchConfigPathContainment::test_symlink_inside_the_watch_dir_cannot_redirect_the_write
 tests/unit/test_socket_stats_without_clients.py::test_nothing_is_scanned_or_emitted_when_nobody_is_connected
@@ -11,6 +19,4 @@ tests/unit/test_socket_stats_without_clients.py::test_the_counters_are_still_sen
 tests/unit/test_watch_model.py::TestHistoryPathTraversal::test_dangling_symlink_is_skipped
 tests/unit/test_watch_model.py::TestHistoryPathTraversal::test_symlink_inside_data_dir_is_accepted
 tests/unit/test_watch_model.py::TestHistoryPathTraversal::test_symlink_pointing_outside_data_dir_is_rejected
-tests/unit/test_xml_security.py::test_xxe_not_expanded_xpath_filter
-tests/unit/test_xml_security.py::test_xxe_not_expanded_xpath1_filter
 tests/unit/test_auth_decorator_order.py::test_auth_decorator_order

@@ -130,7 +130,7 @@
         {% for h in history %}
           <tr>
             <td class="wp-nowrap" title="{{ h.ts|format_timestamp_timeago }}">{{ h.ts|format_unix_ts if h.ts is defined else '' }}</td>
-            <td>{% if h.watch_uuid %}<a href="{{ url_for('ui.ui_diff.diff_history_page', uuid=h.watch_uuid) }}">{{ h.watch_title or h.watch_url }}</a>{% else %}—{% endif %}
+            <td>{% if h.watch_uuid and h.watch_uuid in versions %}<a href="{{ url_for('ui.ui_diff.diff_history_page', uuid=h.watch_uuid) if versions[h.watch_uuid] >= 2 else url_for('ui.ui_preview.preview_page', uuid=h.watch_uuid) }}">{{ h.watch_title or h.watch_url }}</a>{% else %}{{ h.watch_title or h.watch_url or '—' }}{% endif %}
               {% if h.title %}<div class="wp-muted wp-small">{{ h.title }}</div>{% endif %}</td>
             <td>{% for d in h.destinations %}<span class="wp-chip">{{ d.channel }}</span>{% endfor %}</td>
             <td>{{ _('Test') if h.kind == 'test' else _('Change alert') }}</td>

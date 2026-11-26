@@ -178,6 +178,8 @@ def construct_notifications_blueprint(datastore: ChangeDetectionStore):
             typed=typed,
             chats=chats,
             history=history.read(datastore.datastore_path, limit=100),
+            # saved versions per website: the change page needs 2, and a deleted website gets no link at all
+            versions={u: w.history_n for u, w in datastore.data['watching'].items()},
             all_muted=app_settings.get('all_muted', False),
             muted_watches=sum(1 for w in datastore.data['watching'].values() if w.get('notification_muted')),
         )

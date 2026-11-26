@@ -47,7 +47,7 @@ function Get-RamMB([int]$port) {
     ($procs | ForEach-Object { (Get-Process -Id $_.ProcessId).WorkingSet64 } | Measure-Object -Maximum).Maximum / 1MB
 }
 function Start-App([string]$datastore, [int]$port, [hashtable]$extraEnv, [string]$logName) {
-    $base = @{ LISTEN_HOST = '127.0.0.1'; DISABLE_VERSION_CHECK = 'true'; FETCH_WORKERS = '3'; PYTHONIOENCODING = 'utf-8' }
+    $base = @{ LISTEN_HOST = '127.0.0.1'; DISABLE_VERSION_CHECK = 'true'; FETCH_WORKERS = '3'; PYTHONIOENCODING = 'utf-8'; REQUESTS_RETRY_MAX_COUNT = '2' }  # same as run.ps1
     $all = $base + $extraEnv
     $saved = @{}
     foreach ($k in $all.Keys) { $saved[$k] = [Environment]::GetEnvironmentVariable($k); [Environment]::SetEnvironmentVariable($k, $all[$k]) }

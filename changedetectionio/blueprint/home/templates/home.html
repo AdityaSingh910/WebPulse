@@ -49,7 +49,7 @@
       {% if site_changes %}
       <ul class="wp-list">
         {% for w in site_changes %}
-        <li><span class="wp-trunc"><a href="{{ url_for('ui.ui_diff.diff_history_page', uuid=w.uuid) }}">{{ w.label }}</a> {{ demo_chip(w) }}</span>
+        <li><span class="wp-trunc"><a href="{{ (url_for('ui.ui_diff.diff_history_page', uuid=w.uuid) if w.history_n >= 2 else url_for('ui.ui_preview.preview_page', uuid=w.uuid)) }}">{{ w.label }}</a> {{ demo_chip(w) }}</span>
             <span>{{ w.last_changed|format_timestamp_timeago }}</span></li>
         {% endfor %}
       </ul>
@@ -68,7 +68,7 @@
       <ul class="wp-list">
         {% for w in products %}
         {%- set r = w.get('restock') or {} -%}
-        <li><span class="wp-trunc"><a href="{{ url_for('ui.ui_diff.diff_history_page', uuid=w.uuid) }}">{{ w.label }}</a> {{ demo_chip(w) }}</span>
+        <li><span class="wp-trunc"><a href="{{ (url_for('ui.ui_diff.diff_history_page', uuid=w.uuid) if w.history_n >= 2 else url_for('ui.ui_preview.preview_page', uuid=w.uuid)) }}">{{ w.label }}</a> {{ demo_chip(w) }}</span>
           <span class="wp-price">{% if r.get('price') is not none %}{{ r.get('price')|format_price(r.get('currency')) }}{% else %}—{% endif %}
             {%- if r.get_price_change_percent and r.get_price_change_percent() %} <em class="{{ 'down' if r.get_price_change_percent() < 0 else 'up' }}">{{ '%+.1f'|format(r.get_price_change_percent()) }}%</em>{% endif %}</span></li>
         {% endfor %}
@@ -90,7 +90,7 @@
       </div>
       {% if stock_list %}
       <ul class="wp-list">{% for w in stock_list %}{%- set r = w.get('restock') or {} -%}
-        <li><span class="wp-trunc"><a href="{{ url_for('ui.ui_diff.diff_history_page', uuid=w.uuid) }}">{{ w.label }}</a> {{ demo_chip(w) }}</span>
+        <li><span class="wp-trunc"><a href="{{ (url_for('ui.ui_diff.diff_history_page', uuid=w.uuid) if w.history_n >= 2 else url_for('ui.ui_preview.preview_page', uuid=w.uuid)) }}">{{ w.label }}</a> {{ demo_chip(w) }}</span>
           {% if r.get('in_stock') %}<span class="wp-status wp-status--on">{{ _('In stock') }}</span>{% else %}<span class="wp-status wp-status--bad">{{ _('Out of stock') }}</span>{% endif %}</li>{% endfor %}</ul>
       {% endif %}
       <footer><a class="wp-btn" href="{{ url_for('watchlist.index', processor='restock_diff') }}">{{ _('View stock status') }}</a></footer>
@@ -107,7 +107,7 @@
       {% if jobs %}
       <ul class="wp-list">
         {% for w in jobs %}
-        <li><span class="wp-trunc"><a href="{{ url_for('ui.ui_diff.diff_history_page', uuid=w.uuid) }}">{{ w.label }}</a> {{ demo_chip(w) }}</span>
+        <li><span class="wp-trunc"><a href="{{ (url_for('ui.ui_diff.diff_history_page', uuid=w.uuid) if w.history_n >= 2 else url_for('ui.ui_preview.preview_page', uuid=w.uuid)) }}">{{ w.label }}</a> {{ demo_chip(w) }}</span>
             <span>{% if w.last_changed %}{{ _('changed') }} {{ w.last_changed|format_timestamp_timeago }}{% else %}{{ _('no change yet') }}{% endif %}</span></li>
         {% endfor %}
       </ul>

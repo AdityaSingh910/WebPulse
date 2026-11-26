@@ -78,15 +78,15 @@ No history is invented. The earlier "[Sample data]" watches with simulated histo
 
 ```powershell
 .\e2e\run_unit.ps1               # upstream unit tests + template syntax + dependency/import checks
-.\e2e\run_e2e.ps1 -Browser -UI   # 95 end-to-end checks
+.\e2e\run_e2e.ps1 -Browser -UI   # 96 end-to-end checks
 ```
 
-The 95 end-to-end checks are:
+The 96 end-to-end checks are:
 * 40 core and extended API checks;
 * 5 persistence checks;
 * 8 security checks: SSRF, password, CSRF;
 * 8 checks of the JavaScript browser fetcher;
-* 34 interface tests that click through the real UI in Microsoft Edge. These include the Email/Telegram set-up,
+* 35 interface tests that click through the real UI in Microsoft Edge. These include the Email/Telegram set-up,
   the notification history, "Track jobs", the Controlled demo, and a check that the demo site never forwards
   requests.
 

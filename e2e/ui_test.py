@@ -482,6 +482,20 @@ def run():
             if code >= 400:
                 bad[href] = code
         check('U28', f'Every Home card button opens a working page ({len(hrefs)} links)', not bad, bad or 'all OK')
+
+        # ---- U35: links to a website open its page directly; the change page needs 2 versions and would
+        #      otherwise bounce back to the list with "Not enough history" ----
+        watch_links = set()
+        for pth in ('/', '/demo/'):
+            hp.goto(BASE + pth, wait_until='networkidle')
+            watch_links |= {a.get_attribute('href') for a in hp.locator('.wp-card a[href*="/diff/"], .wp-card a[href*="/preview/"]').all()}
+        bounced = {}
+        for href in sorted(h for h in watch_links if h):
+            r = requests.get(urljoin(BASE + '/', href), timeout=30, allow_redirects=False)
+            if r.status_code != 200:
+                bounced[href] = r.status_code
+        check('U35', f'Website links on Home and Controlled demo open directly ({len(watch_links)} links, no redirect)',
+              watch_links and not bounced, bounced or 'all 200')
         b.close()
 
     # 'Transport not open' is raised by the Socket.IO client when the test navigates away before the live-update
