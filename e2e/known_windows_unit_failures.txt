@@ -1,14 +1,17 @@
 # Unit-test failures on native Windows 11 / Python 3.12. The reasons below were re-checked from the actual error
 # messages in Phase 12 (earlier notes were partly wrong). None is caused by the simplification:
-#  - 5 symlink tests: os.symlink needs administrator rights or Windows "Developer Mode" (WinError 1314). They pass
-#    if Developer Mode is switched on; the path-traversal code they test is unchanged from upstream.
-#  - test_fetch_url_gate ...link_local_aaaa...: an ERROR at set-up, not a failure. tests/conftest.py starts the
-#    pytest-flask live server for every test; on Windows (no fork) that fails once with "Can't pickle local object
-#    LiveServer.start.<locals>.worker" for the first test that triggers it.
+#  - 4 symlink tests (test_watch_model x3, test_processor_config_path_traversal x1): os.symlink needs administrator
+#    rights or Windows "Developer Mode" (OSError WinError 1314). The path-traversal code they test is unchanged.
+#  - test_fetch_url_gate ...junk_link_local_aaaa...: "True is not false". The SSRF gate's exception for a junk
+#    fe80:: AAAA record is deliberately Linux-only (validate_url._is_unreachable_link_local checks sys.platform), and
+#    this test does not patch sys.platform, so on Windows the hostname correctly stays blocked (the safe outcome).
 #  - 2 socket_stats tests: an outdated UPSTREAM test, failing on Linux too. Upstream moved the "no browser connected,
 #    skip the work" check from handle_watch_update() into SignalHandler (realtime/socket_server.py), but these tests
 #    still call handle_watch_update() directly.
-#  - test_auth_decorator_order: uses the live server (above); passes or fails depending on test order.
+#  - test_auth_decorator_order: an ERROR at set-up, not a failure. tests/conftest.py starts the pytest-flask live
+#    server for every test; on Windows (no fork) that fails with "Can't pickle local object
+#    LiveServer.start.<locals>.worker" for the first test that triggers it (this one, in a full run).
+# Re-checked against the actual output in the functional audit (26 Nov 2026): 7 failed + 1 error = these 8.
 # Fixed in Phase 12 and removed from this list: the 2 test_xml_security XXE tests built an invalid Windows file URI
 # ("file://C:\..."), so lxml rejected the payload before the XXE protection was ever tested. They now use
 # Path.as_uri() and pass.

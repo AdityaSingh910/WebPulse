@@ -685,3 +685,67 @@ while the watch is a job monitor.
   * `static/styles/scss/webpulse.scss` and `webpulse.css`;
   * `e2e/fixture_server.py`, `e2e/test_e2e.py`, `e2e/ui_test.py`, `demo/setup_presentation.py`;
   * the docs.
+
+## Phase 14: complete functional audit and real-world data expansion
+
+Every feature was re-verified by running it (live app, throw-away instances, browser automation). The full report is
+`docs/COMPLETE_FUNCTIONAL_AUDIT.md`.
+
+### Bugs found and fixed
+
+* **Greenhouse "New" tag inside job titles** (`processors/job_listings/extract.py`). Greenhouse boards put a
+  temporary `<span class="tag-container">New</span>` inside the title, so "Lead Software Development Engineer" was
+  read as "... Engineer New". When Greenhouse later drops the tag, the title would have looked *modified* (a false
+  change). The tag is now excluded. One stored HackerRank title from Phase 13 had the suffix and was repaired.
+* **A Lever board with no openings read as one fake opening.** Its `.postings-wrapper` was not recognised as Lever,
+  so automatic mode turned the page text into an "opening". Lever is now recognised by `.postings-wrapper` too, and
+  automatic mode only accepts real job links.
+* **Uncaught "Transport not open" JavaScript error on every page navigation** (`static/js/realtime.js`, inherited).
+  `socket.disconnect()` in `beforeunload` throws when the Socket.IO connection is still being set up; it is now
+  guarded.
+* **Controlled demo:** removing the last demo job did nothing (the demo site ignores an empty value); it now sends
+  an explicit empty list.
+
+### Improved (from the Phase 13 known limitation)
+
+* **Confirmed empty job boards** (`extract.confirmed_empty`, processor): zero openings are accepted only on an
+  explicit signal:
+  * Lever's `.no-postings-message`, seen on a real board ("No job postings currently open. Check back later!");
+  * Greenhouse's count header "0 jobs";
+  * or a "no open positions" message inside the selected page section.
+
+  Anything else is still an error that keeps every opening, and the two-checks rule for big drops still applies.
+  The board's own stated total (Greenhouse "N jobs") is recorded and shown next to the number read.
+* **SmartRecruiters boards** (e.g. Freshworks) are read with location, employment type and canonical job links.
+* **Controlled demo:**
+  * a **Block the careers page / Unblock** button shows that a failed read removes nothing;
+  * the demo careers page shows "No open positions" when it is empty;
+  * the demo product page has a `product_page=broken` test mode.
+
+### Tests
+
+* **Unit:** 4 new tests (Greenhouse tag, SmartRecruiters, confirmed-empty signals, empty-board drop rules).
+* **e2e:**
+  * J12 now uses a blocked page;
+  * new **J18** (confirmed empty board), **J19** (re-opened openings) and **J20** (last-seen timestamps and chart
+    counts).
+* **Results:** e2e **118/118**; unit **457 passed**, 0 new failures. The 8 known Windows-only failures were
+  re-checked against the actual output, and the recorded causes were corrected in
+  `e2e/known_windows_unit_failures.txt`: 4 symlink tests, not 5, and the fetch-gate test is a Linux-only SSRF
+  exception, not the live server.
+
+### Real-world data (live instance, after backups)
+
+33 real watches were added after discovery and validation (robots.txt honoured, no CAPTCHA bypass, no paid service):
+* **4 websites:** UGC notices (XPath), GitHub Changelog, Python Insider (CSS + regex), The Hindu technology;
+* **19 products** from Decathlon, IKEA India, boAt, Sleepy Owl, Mokobara, Bombay Shaving Company and Noise;
+* **10 career boards:** HighLevel, Zeta, Mindtickle, CRED, Paytm, Razorpay, Groww, InMobi, Zenoti and Freshworks.
+
+**Files:**
+* `processors/job_listings/{extract,processor,tracker}.py`;
+* `blueprint/jobs/templates/jobs-detail.html`;
+* `blueprint/demo_lab/__init__.py` and `templates/demo-lab.html`;
+* `static/js/realtime.js`;
+* `e2e/fixture_server.py`, `e2e/test_e2e.py`, `e2e/known_windows_unit_failures.txt`;
+* `tests/unit/test_job_listings.py`;
+* `docs/COMPLETE_WALKTHROUGH.md`, `docs/COMPLETE_FUNCTIONAL_AUDIT.md`.

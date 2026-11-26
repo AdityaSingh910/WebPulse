@@ -74,6 +74,11 @@
         <button class="wp-btn wp-btn--ghost" name="action" value="remove_job"><i data-feather="minus"></i>{{ _('Remove a job') }}</button>
         <button class="wp-btn wp-btn--ghost" name="action" value="add_irrelevant_job" title="{{ _('Shows the keyword filter at work') }}"><i data-feather="filter"></i>{{ _('Publish a non-technical job') }}</button>
         <button class="wp-btn wp-btn--ghost" name="action" value="shuffle_jobs" title="{{ _('Shows that a different order is not a change') }}"><i data-feather="shuffle"></i>{{ _('Reorder the jobs') }}</button>
+        {% if state.get('jobs_page') == 'blocked' %}
+        <button class="wp-btn" name="action" value="unblock_jobs_page"><i data-feather="check-circle"></i>{{ _('Unblock the careers page') }}</button>
+        {% else %}
+        <button class="wp-btn wp-btn--ghost" name="action" value="block_jobs_page" title="{{ _('Shows that a failed read does not remove any job') }}"><i data-feather="slash"></i>{{ _('Block the careers page') }}</button>
+        {% endif %}
       </form>
       <p class="wp-note"><i data-feather="info"></i>{{ _('The careers page also has a visitor counter and a clock that change on every visit. WebPulse watches only the job list, so those changes are ignored.') }}</p>
       <h3 class="wp-h3">{{ _('What WebPulse has seen') }}</h3>

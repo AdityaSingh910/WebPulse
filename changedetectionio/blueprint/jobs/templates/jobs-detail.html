@@ -22,7 +22,9 @@
     <dl class="wp-dl wp-dl--tight wp-small">
       <dt>{{ _('Last checked') }}</dt><dd>{{ w.last_checked|format_timestamp_timeago }}{% if state.last_success %} · {{ _('last successful read') }} {{ state.last_success|format_unix_ts }}{% endif %}</dd>
       <dt>{{ _('Monitoring since') }}</dt><dd>{{ state.baseline_at|format_unix_ts if state.baseline_at else _('not read yet') }}</dd>
-      <dt>{{ _('How the openings are read') }}</dt><dd>{{ state.strategy or '—' }}{% if state.last_found is not none %} · {{ _('%(found)s openings on the page, %(matched)s match the keywords', found=state.last_found, matched=state.last_matched) }}{% endif %}</dd>
+      <dt>{{ _('How the openings are read') }}</dt><dd>{{ state.strategy or '—' }}{% if state.last_found is not none %} · {{ _('%(found)s openings on the page, %(matched)s match the keywords', found=state.last_found, matched=state.last_matched) }}{% endif %}
+        {% if state.declared_total is not none %} · {{ _('the board itself says %(n)s', n=state.declared_total) }}{% endif %}</dd>
+      {% if state.empty_reason %}<dt>{{ _('No openings right now') }}</dt><dd>{{ state.empty_reason }}</dd>{% endif %}
     </dl>
     <div class="wp-form-actions">
       <form method="POST" action="{{ url_for('jobs.check_now', uuid=w.uuid) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

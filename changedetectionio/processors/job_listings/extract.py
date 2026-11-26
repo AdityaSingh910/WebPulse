@@ -149,6 +149,10 @@ def greenhouse_jobs(soup, base_url):
         a = post.find('a', href=True)
         if a is None:
             continue
+        # Greenhouse adds a temporary "New" tag inside the title; it is not part of the title (when it goes away
+        # after a few days the title would otherwise look "modified")
+        for tag in a.select('.tag-container, .tag-text'):
+            tag.decompose()
         ps = [_text(p) for p in a.find_all('p')]
         ps = [p for p in ps if p]
         title = ps[0] if ps else _text(a)
@@ -167,6 +171,30 @@ def greenhouse_jobs(soup, base_url):
                 team = _first_text(section, 'h2, h3, h4')
             jobs.append(make_job(_text(a), canonical_url(a.get('href'), base_url),
                                  location=_first_text(post, '.location'), team=team))
+    return [j for j in jobs if j]
+
+
+def _workplace(text):
+    t = (text or '').lower()
+    return 'Hybrid' if 'hybrid' in t else 'Remote' if 'remote' in t else 'On-site' if ('on-site' in t or 'onsite' in t or 'office' in t) else ''
+
+
+def smartrecruiters_jobs(soup, base_url):
+    """SmartRecruiters company pages (careers.smartrecruiters.com/<Company>): openings grouped under a location header"""
+    jobs = []
+    for li in soup.select('li.opening-job'):
+        a = li.find('a', href=True)
+        if a is None:
+            continue
+        title = _first_text(li, '.job-title, h4') or _text(a)
+        location = ''
+        section = li.find_parent(class_='openings-section')
+        if section is not None:
+            header = section.select_one('.opening-header')
+            location = re.sub(r'\s*\d+\s+jobs?$', '', _text(header), flags=re.I) if header is not None else ''
+        employment = _join_unique([s.get_text(' ', strip=True) for s in li.select('.job-desc > span')] +
+                                  [_workplace(t.get('content')) for t in li.select('spl-tooltip[content]')])
+        jobs.append(make_job(title, canonical_url(a.get('href'), base_url), location=location, employment_type=employment))
     return [j for j in jobs if j]
 
 
@@ -310,8 +338,8 @@ def generic_jobs(elements, base_url, company, strict=False):
     for el in elements:
         links = _job_links(el, base_url, strict)
         if not links:
-            if el.name == 'a':
-                continue   # e.g. a "More jobs in Bengaluru" link the selector also matched
+            if el.name == 'a' or strict:
+                continue   # a "More jobs in Bengaluru" link the selector also matched / automatic mode needs job links
             children = [c for c in el.find_all(['li', 'tr', 'article'], recursive=True) if _text(c)]
             for c in (children or [el]):
                 add(c, None, None)
@@ -363,10 +391,12 @@ def extract_jobs(html, base_url, selectors=None, subtractive_selectors=None):
         raise SelectorMatchedNothing(', '.join(selectors))
 
     jobs, strategy = [], None
-    if soup.select_one('div.posting[data-qa-posting-id]'):
+    if soup.select_one('div.posting[data-qa-posting-id], .postings-wrapper'):
         jobs, strategy = lever_jobs(soup, base_url), 'Lever job board'
     elif soup.select_one('.job-post a[href], div.opening a[href]'):
         jobs, strategy = greenhouse_jobs(soup, base_url), 'Greenhouse job board'
+    elif soup.select_one('li.opening-job a[href]'):
+        jobs, strategy = smartrecruiters_jobs(soup, base_url), 'SmartRecruiters job board'
 
     if strategy and selected:
         # Keep only the openings inside the part of the page the user selected
@@ -381,7 +411,7 @@ def extract_jobs(html, base_url, selectors=None, subtractive_selectors=None):
         ld = jsonld_jobs(soup, base_url)
         if ld:
             jobs, strategy = ld, 'schema.org JobPosting data'
-    if not jobs and not selected:
+    if not jobs and not selected and strategy in (None, 'schema.org JobPosting data'):
         _strip_chrome(soup)
         jobs, strategy = generic_jobs([soup.body or soup], base_url, company, strict=True), 'Job links found on the page'
 
@@ -397,6 +427,41 @@ def extract_jobs(html, base_url, selectors=None, subtractive_selectors=None):
         if len(out) >= MAX_JOBS:
             break
     return out, strategy or 'none', company
+
+
+# ---------------------------------------------------------------------------------------------- empty boards
+GREENHOUSE_COUNT_RE = re.compile(r'data-testid="job-count-header"[^>]*>\s*(\d+)\s+jobs?\s*<', re.I)
+NO_OPENINGS_RE = re.compile(r'\b(?:no|zero)\s+(?:current\s+|open\s+)?(?:job\s+)?(?:openings|postings|open positions|positions|vacancies|jobs)\b'
+                            r'|\bnot (?:currently )?hiring\b', re.I)
+
+
+def declared_total(html):
+    """The number of openings the board itself states, where it does (Greenhouse: "50 jobs"), else None"""
+    m = GREENHOUSE_COUNT_RE.search(html or '')
+    return int(m.group(1)) if m else None
+
+
+def confirmed_empty(html, selectors=None):
+    """When no opening was read: does the page explicitly say it has none? Returns the reason, or None.
+    Only explicit signals count - a page that merely lacks jobs (bot check, redesign, wrong selector) is not
+    'empty', it is a failed read."""
+    from bs4 import BeautifulSoup
+    if declared_total(html) == 0:
+        return 'The Greenhouse board states "0 jobs"'
+    soup = BeautifulSoup(html or '', 'html.parser')
+    msg = soup.select_one('.postings-wrapper .no-postings-message')
+    if msg is not None and not soup.select_one('div.posting'):
+        return f'The Lever board says: "{_text(msg)}"'
+    for s in [s for s in (selectors or []) if s and s.strip() and not s.strip().startswith(('/', 'xpath'))]:
+        try:
+            for el in soup.select(s):
+                scope = el.parent if el.parent is not None and el.parent.name not in ('html', '[document]') else el
+                m = NO_OPENINGS_RE.search(scope.get_text(' ', strip=True))
+                if m:
+                    return f'The page section says: "{clean(m.group(0))}"'
+        except Exception:
+            continue
+    return None
 
 
 # ---------------------------------------------------------------------------------------------- keywords

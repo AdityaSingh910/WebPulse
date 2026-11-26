@@ -60,10 +60,15 @@ class perform_site_check(difference_detection_processor):
             raise self._error(f"The page section \"{e}\" was not found on the page, so no job openings were read. "
                               f"Nothing was marked as removed. Check the CSS selector, or remove it to let WebPulse find the jobs itself.")
 
+        html = self.fetcher.content or ''
+        empty_reason = None
         if not found:
-            # Blocked page, bot check, page redesign or a temporary problem - never "every job was removed"
-            raise self._error("No job openings could be read from this page (the job list was empty or not recognised). "
-                              "Nothing was marked as removed; the next check tries again.")
+            # Only an explicit "no openings" signal from the board counts as an empty board. Anything else (blocked
+            # page, bot check, redesign, temporary problem) is a failed read - never "every job was removed".
+            empty_reason = extract.confirmed_empty(html, selectors)
+            if not empty_reason:
+                raise self._error("No job openings could be read from this page (the job list was empty or not recognised). "
+                                  "Nothing was marked as removed; the next check tries again.")
 
         matches = extract.keyword_matcher(keyword_rules)
         jobs = [j for j in found if matches(j)]
@@ -77,6 +82,8 @@ class perform_site_check(difference_detection_processor):
                               f"If the next check finds the same, the missing openings are marked as removed.")
         state['strategy'] = strategy
         state['company'] = company
+        state['declared_total'] = extract.declared_total(html)
+        state['empty_reason'] = empty_reason
         tracker.save_state(watch.data_dir, state)
 
         snapshot = tracker.snapshot_text(state)

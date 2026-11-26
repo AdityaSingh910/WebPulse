@@ -371,19 +371,46 @@ def jobs_checks(api, notif):
           'Software Engineering Intern' in page and 'wp-badge--removed' in page and 'Additions and removals per day' in page
           and '<svg' in page, '')
 
-    # a temporary extraction failure: the job list is empty
+    # a temporary extraction failure: a bot-check page instead of the careers page (HTTP 200, no job list)
     events_before, active_before = len(st['events']), _active(st)
-    requests.post(FIX + '/set', params={'jobs': '|'})     # no job entries (an empty value would be ignored by the site)
+    requests.post(FIX + '/set', params={'jobs_page': 'blocked'})
     w = _recheck_and_wait(api, uuid)
     st = _jobs_state(uuid)
-    check('J12', 'Empty job list = error, nothing marked as removed',
-          'No job openings' in str(w.get('last_error')) and len(st['events']) == events_before and _active(st) == active_before,
+    check('J12', 'Blocked page (bot check) = error, nothing marked as removed',
+          'not found on the page' in str(w.get('last_error')) and len(st['events']) == events_before and _active(st) == active_before,
           f"err={str(w.get('last_error'))[:80]} active={len(_active(st))}")
-    requests.post(FIX + '/set', params={'jobs': jobs_now})
+    requests.post(FIX + '/set', params={'jobs_page': 'normal'})
     w = _recheck_and_wait(api, uuid)
     st = _jobs_state(uuid)
     check('J13', 'Page back to normal: error cleared, no change reported',
           not w.get('last_error') and len(st['events']) == events_before, f"err={w.get('last_error')}")
+
+    # a genuinely empty board: the page says so explicitly -> openings are removed, with the reason
+    requests.post(FIX + '/set', params={'jobs': '|'})     # no job entries (an empty value would be ignored by the site)
+    w = _recheck_and_wait(api, uuid)
+    st = _jobs_state(uuid)
+    ev = st['events'][-1]
+    page = s.get(f'{BASE}/jobs/{uuid}', timeout=30).text
+    check('J18', 'Confirmed empty board ("No open positions" on the page): openings removed, reason shown, no error',
+          not w.get('last_error') and _active(st) == [] and len(ev.get('removed', [])) == len(active_before)
+          and 'No open positions' in (st.get('empty_reason') or '') and 'No openings right now' in page,
+          f"err={w.get('last_error')} reason={st.get('empty_reason')} removed={len(ev.get('removed', []))}")
+    requests.post(FIX + '/set', params={'jobs': jobs_now})
+    _recheck_and_wait(api, uuid)
+    st = _jobs_state(uuid)
+    ev = st['events'][-1]
+    check('J19', 'Openings back on the board = re-opened (new again), first detected kept',
+          sorted(a['title'] for a in ev.get('added', [])) == active_before and not st.get('empty_reason')
+          and all(j['first_seen'] < j['added_at'] for j in st['jobs'].values() if j['status'] == 'active'),
+          f"added={[a['title'] for a in ev.get('added', [])]}")
+
+    # timestamps and the historical counts
+    w = api('GET', f'/watch/{uuid}').json()
+    last_seen = max(j['last_seen'] for j in st['jobs'].values() if j['status'] == 'active')
+    expected_counts = [3, 4, 4, 3, 0, 3]   # baseline, +SRE, modified, -intern, confirmed empty, re-opened
+    check('J20', 'Last seen = time of the latest check; chart counts = active openings after each change',
+          abs(last_seen - int(w.get('last_checked') or 0)) <= 5 and [e['active'] for e in st['events']] == expected_counts,
+          f"last_seen-last_checked={last_seen - int(w.get('last_checked') or 0)} counts={[e['active'] for e in st['events']]}")
 
     # new keywords = new starting point, no alert
     n1 = len(read_log())

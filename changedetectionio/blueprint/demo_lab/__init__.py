@@ -144,7 +144,7 @@ def construct_blueprint(datastore, update_q, queuedWatchMetaData, worker_pool):
                 flash(gettext('There are no jobs left to remove.'), 'error')
                 return redirect(url_for('demo_lab.demo_page'))
             removed = jobs[-1] if jobs[-1] != IRRELEVANT_JOB or len(jobs) == 1 else jobs[-2]
-            _set(jobs='|'.join(j for j in jobs if j != removed))
+            _set(jobs='|'.join(j for j in jobs if j != removed) or '|')     # '|' = no jobs (an empty value is ignored)
             target, msg = '/jobs.html', gettext('Job removed: %(job)s', job=removed)
         elif action == 'modify_job':
             if not jobs:
@@ -160,6 +160,11 @@ def construct_blueprint(datastore, update_q, queuedWatchMetaData, worker_pool):
                 return redirect(url_for('demo_lab.demo_page'))
             _set(jobs='|'.join(jobs[1:] + jobs[:1]))
             target, msg = '/jobs.html', gettext('The same jobs are now listed in a different order. WebPulse should report no change.')
+        elif action in ('block_jobs_page', 'unblock_jobs_page'):
+            blocked = action == 'block_jobs_page'
+            _set(jobs_page='blocked' if blocked else 'normal')
+            target, msg = '/jobs.html', (gettext('The careers page now shows a “verify you are human” page instead of the jobs. WebPulse should report an error and keep every opening.')
+                                         if blocked else gettext('The careers page is back to normal.'))
         elif action == 'news_update':
             text = time.strftime('Company update at %H:%M: ') + gettext('our new office in Pune opens next month.')
             _set(text=text)

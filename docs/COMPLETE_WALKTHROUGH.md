@@ -441,6 +441,10 @@ scheduler → queue → worker → fetcher (plain HTTP or Edge, SSRF check, prox
   * a failed fetch never reaches the processor;
   * a page section that matches nothing, or a page with no openings at all (blocked page, bot check, redesign), is
     recorded as the watch's error and the stored openings are kept;
+  * the exception is a **confirmed empty board**: only an explicit signal from the board counts, namely Lever's
+    `.no-postings-message` ("No job postings currently open"), Greenhouse's count header "0 jobs", or a "no open
+    positions" message inside the selected page section. Then the openings are removed and the reason is shown on
+    the Openings page;
   * a sudden drop to 20 % or less of the openings (from at least 10) must be seen on **two checks in a row** before
     the missing openings are marked as removed.
 * **Storage:** `jobs.json` in the watch's folder, written atomically:
@@ -838,9 +842,9 @@ on `/demo/action` and `/settings/notifications/`; E2E S04, E22).
 
 | Suite | Result (26 Nov) | What it covers |
 |---|---|---|
-| `e2e\run_e2e.ps1 -Browser -UI` | **115/115** | 57 core API/UI checks (incl. 17 structured job checks J01–J17), 7 persistence, 8 security (SSRF, password, CSRF), 8 browser (Playwright + Edge), 35 UI tests clicking the real interface |
-| `e2e\run_unit.ps1` | 453 passed, 0 new failures | the upstream unit tests + 21 WebPulse job-monitor tests |
-| | 8 known Windows failures | 5 need admin rights or Developer Mode for symlinks; 2 need `fork()` (pytest-flask live server); 2 are outdated upstream tests. Details in `e2e/known_windows_unit_failures.txt` |
+| `e2e\run_e2e.ps1 -Browser -UI` | **118/118** | 60 core API/UI checks (incl. 20 structured job checks J01–J20), 7 persistence, 8 security (SSRF, password, CSRF), 8 browser (Playwright + Edge), 35 UI tests clicking the real interface |
+| `e2e\run_unit.ps1` | 457 passed, 0 new failures | the upstream unit tests + 25 WebPulse job-monitor tests |
+| | 8 known Windows failures | 4 need admin rights or Developer Mode for symlinks; 1 is a Linux-only SSRF exception the test assumes; 2 are outdated upstream tests; 1 needs `fork()` (pytest-flask live server). Details in `e2e/known_windows_unit_failures.txt` |
 | | templates 37/37, imports 52/52 | |
 
 ### 10.7 Known limitations
@@ -854,8 +858,9 @@ on `/demo/action` and `/settings/notifications/`; E2E S04, E22).
 * Upstream's Linux-only integration tests (`tests/*.py`) cannot run on Windows; `e2e/` replaces them.
 * jq filters are unavailable on Windows (no wheel); CSS, XPath and JSONPath work.
 * Job monitoring reads the openings the page itself lists. Boards that load jobs only with JavaScript need the
-  browser fetch method. A board that shows **zero** openings is reported as "no openings could be read" (it cannot
-  be told apart from a blocked page). Keywords match the job **title** only.
+  browser fetch method. A board with zero openings is accepted only when it says so explicitly (Lever, Greenhouse,
+  or a "no open positions" message in the selected section); a custom page without such a message shows an error
+  instead. Keywords match the job **title** only.
 * Custom SMTP logs in with the part of the address before the @. Gmail, Outlook, Yahoo and Zoho are configured
   automatically.
 
@@ -875,6 +880,7 @@ on `/demo/action` and `/settings/notifications/`; E2E S04, E22).
 | 6 | **Remove a job** | **Removed** filter: struck through, with the time it disappeared | yes |
 | 7 | **Publish a non-technical job** | "Office Administrator" appears on the demo page but nothing changes in WebPulse | **no**: the keyword filter worked |
 | 7b | **Reorder the jobs** | the same jobs in a different order: no change, no new version | **no**: openings are compared by their job link |
+| 7c | **Block the careers page**, then **Unblock** | a "verify you are human" page: the watch shows an error and **every opening is kept**; after Unblock the error clears with no change | no |
 | 8 | **Change the page text** | the news text changes; **View changes** shows red/green | yes |
 | 9 | **Reset the demo site** | the demo site returns to its start; WebPulse's history is kept | no (nothing is checked) |
 
@@ -966,7 +972,7 @@ Legend: ✅ yes · ⚠️ partly or needs a condition · ❌ no · — not appli
 | Price increase/decrease and % | ✅ | ✅ (C10, U33, formula verified) | ⚠️ only when shops change prices | ✅ | — | — |
 | Out of stock / back in stock | ✅ | ✅ (C09, U08, demo) | ⚠️ Sleepy Owl and boAt currently out of stock; a restock would be genuine | ✅ | — | Default for new products: alert on restock only |
 | Price chart, min/max/average | ✅ | ✅ (C13–C14, U09–U10, hand calculation) | ⚠️ needs 2+ real price versions | ✅ | — | Not time-weighted |
-| Job boards: structured openings (Hevo, Meesho, HackerRank, python.org) | ✅ | ✅ (live 26 Nov: 18/10/17/22; unit tests; J01–J04) | ✅ | — | — | JavaScript-only boards need the browser; a board with 0 openings shows an error |
+| Job boards: structured openings (Hevo, Meesho, HackerRank, python.org) | ✅ | ✅ (live 26 Nov: 18/10/17/22; unit tests; J01–J04) | ✅ | — | — | JavaScript-only boards need the browser; a custom page with 0 openings and no "no openings" message shows an error |
 | New / removed / modified openings, reordering, duplicates, failures | ✅ | ✅ (J05–J13, unit tests, demo buttons) | ⚠️ real job changes take days | ✅ | — | — |
 | Job keyword filter (titles), re-baseline on edit | ✅ | ✅ (J02, J08, J14, U32) | ✅ | — | — | Matches titles only |
 | Job history, chart, per-day table, persistence | ✅ | ✅ (J11, P06–P07) | ⚠️ needs real changes over time | ✅ | — | — |

@@ -41,7 +41,7 @@ class SuspiciousDrop(Exception):
 def empty_state():
     return {'version': STATE_VERSION, 'baseline_at': None, 'filter_hash': None, 'jobs': {}, 'events': [],
             'last_success': None, 'last_found': None, 'last_matched': None, 'strategy': None, 'company': None,
-            'pending_drop': None}
+            'pending_drop': None, 'declared_total': None, 'empty_reason': None}
 
 
 def load_state(data_dir):

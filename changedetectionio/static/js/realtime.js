@@ -1,4 +1,5 @@
 // Socket.IO client-side integration for changedetection.io
+// Modified 2026 for the simplified (academic) fork of changedetection.io - see CHANGES.md
 
 $(document).ready(function () {
 
@@ -158,7 +159,9 @@ $(document).ready(function () {
             // Note: this only fires for voluntary closes (tab/window close, navigation away).
             // Hard kills, crashes and network drops will still timeout normally on the server.
             window.addEventListener('beforeunload', function () {
-                socket.disconnect();
+                // WebPulse: leaving while the connection is still being set up makes the Socket.IO client throw
+                // "Transport not open" (an uncaught error on every navigation) - the page is closing anyway
+                try { socket.disconnect(); } catch (e) { /* already closing */ }
             });
 
             socket.on('queue_size', function (data) {

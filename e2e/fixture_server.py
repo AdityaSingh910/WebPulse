@@ -10,7 +10,9 @@ GET  /jobs/<slug>           -> the detail page of one job (the "Apply" link)
 GET  /js.html, /js-product.html -> content / price data that only exists after JavaScript runs
 GET  /slow.html?d=SECONDS&n=ID -> responds after a delay of at most 10 s (used to prove concurrent workers)
 GET  /state.json            -> the current state (read by the WebPulse "Controlled demo" page)
-POST /set?price=..&stock=..&text=..&name=..&jobs=a|b|c -> change state (known keys only, bounded values)
+POST /set?price=..&stock=..&text=..&name=..&jobs=a|b|c&jobs_page=normal|blocked -> change state (known keys only,
+                               bounded values); product_page=broken serves a product page without price data; jobs_page=blocked serves a bot-check page instead of the careers page,
+                               an empty job list shows an explicit "No open positions" message
 POST /reset                 -> back to the default state
 POST /notify                -> notification receiver, appends request bodies to notifications.log
 
@@ -38,7 +40,9 @@ STATE = os.path.join(WORK, 'state.json')
 LOG = os.path.join(WORK, 'notifications.log')
 DEFAULT_JOBS = ['Backend Engineer (Python) - Bengaluru', 'Data Engineer - Hyderabad', 'Software Engineering Intern - Remote']
 DEFAULT = {'price': '499.00', 'stock': 'InStock', 'text': 'Version one of the page.', 'name': 'Test Headphones',
-           'jobs': '|'.join(DEFAULT_JOBS)}
+           'jobs': '|'.join(DEFAULT_JOBS), 'jobs_page': 'normal', 'product_page': 'normal'}
+JOBS_PAGE_VALUES = {'normal', 'blocked'}
+PRODUCT_PAGE_VALUES = {'normal', 'broken'}
 STOCK_VALUES = {'InStock', 'OutOfStock', 'PreOrder', 'BackOrder', 'SoldOut', 'LimitedAvailability'}
 MAX_VALUE = 2000
 MAX_DELAY = 10.0
@@ -74,6 +78,10 @@ def save(s):
 def valid(key, value):
     if key not in DEFAULT or len(value) > MAX_VALUE:
         return False
+    if key == 'jobs_page':
+        return value in JOBS_PAGE_VALUES
+    if key == 'product_page':
+        return value in PRODUCT_PAGE_VALUES
     if key == 'stock':
         return value in STOCK_VALUES
     if key == 'price':
@@ -102,7 +110,10 @@ class Handler(BaseHTTPRequestHandler):
         u = urlparse(self.path)
         q = parse_qs(u.query)
         name = escape(s['name'])
-        if u.path == '/product.html':
+        if u.path == '/product.html' and s.get('product_page') == 'broken':
+            # A shop page that loads (HTTP 200) but carries no price/stock data - e.g. a redesign or a holding page
+            self._send(f"<html><head><title>{name}</title></head><body><h1>{name}</h1><p>Temporarily unavailable.</p></body></html>")
+        elif u.path == '/product.html':
             ld = {"@context": "https://schema.org", "@type": "Product", "name": s['name'],
                   "offers": {"@type": "Offer", "price": s['price'], "priceCurrency": "INR",
                              "availability": "https://schema.org/" + s['stock']}}
@@ -112,6 +123,10 @@ class Handler(BaseHTTPRequestHandler):
         elif u.path == '/page.html':
             self._send(f"<html><head><title>News page</title></head><body><h1>News</h1>"
                        f"<p>{escape(s['text'])}</p></body></html>")
+        elif u.path == '/jobs.html' and s.get('jobs_page') == 'blocked':
+            # What a bot check / temporary block looks like: HTTP 200, but no job list at all
+            self._send("<html><head><title>Just a moment...</title></head><body><h1>Checking your browser</h1>"
+                       "<p>Please verify you are a human to continue.</p></body></html>")
         elif u.path == '/jobs.html':
             items = ''.join(f"<li class='job'><a class='job-title' href='/jobs/{slug}'>{escape(title)}</a>"
                             f"<span class='job-location'>{escape(loc)}</span><span class='job-type'>Full time</span></li>"
@@ -120,7 +135,8 @@ class Handler(BaseHTTPRequestHandler):
                        "<h1>Careers at DemoCorp (WebPulse controlled demo)</h1>"
                        f"<p class='banner'>Visitors today: {random.randint(100, 999)} - join our team!</p>"
                        f"<h2>Open positions</h2><ul id='job-list'>{items}</ul>"
-                       f"<footer>Page generated at {time.strftime('%H:%M:%S')}</footer></body></html>")
+                       + ("" if items else "<p class='no-openings'>No open positions right now - please check back soon.</p>")
+                       + f"<footer>Page generated at {time.strftime('%H:%M:%S')}</footer></body></html>")
         elif u.path.startswith('/jobs/'):
             job = next((j for j in parse_jobs(s['jobs']) if j[0] == u.path[len('/jobs/'):]), None)
             if not job:

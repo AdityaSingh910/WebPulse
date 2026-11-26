@@ -244,3 +244,57 @@ def test_state_survives_save_and_load(tmp_path):
 def test_corrupt_state_file_starts_fresh(tmp_path):
     (tmp_path / tracker.STATE_FILE).write_text('{not json')
     assert tracker.load_state(str(tmp_path)) == tracker.empty_state()
+
+
+# --------------------------------------------------------------------------------------------- audit additions
+GH_NEW_TAG = """<html><head><title>Jobs at Theta</title></head><body><h2 data-testid="job-count-header">1 jobs</h2>
+<tr class="job-post"><td class="cell"><a href="https://job-boards.greenhouse.io/theta/jobs/9"><p class="body body--medium">Lead Software Engineer<span class="tag-container"><span class="ellipse"><span class="tag-text">New</span></span></span></p>
+<p class="body body__secondary body--metadata">Bengaluru</p></a></td></tr></body></html>"""
+
+SMARTRECRUITERS = """<html><head><title>Iota Careers</title></head><body>
+<section class="openings-section opening opening--grouped js-group"><header class="opening-header">Chennai, India 2 jobs</header>
+<ul class="opening-jobs"><li class="opening-job job"><a class="link--block details" href="https://jobs.smartrecruiters.com/Iota/7440001-sde-ii?trid=abc">
+<h4 class="details-title job-title">SDE II</h4><p class="details-desc job-desc"><span>Full-time</span><spl-tooltip content="Employees work in a hybrid mode"></spl-tooltip></p></a></li>
+<li class="opening-job job"><a class="link--block details" href="https://jobs.smartrecruiters.com/Iota/7440002-analyst?trid=abc"><h4 class="job-title">Analyst</h4>
+<p class="job-desc"><span>Full-time</span></p></a></li></ul></section></body></html>"""
+
+LEVER_EMPTY = """<html><head><title>Kappa</title></head><body><div class="postings-wrapper"><p class="no-postings-message">No job postings currently open. Check back later!</p></div>
+<div class="main-footer">Jobs powered by Lever</div></body></html>"""
+
+
+def test_greenhouse_new_tag_is_not_part_of_the_title():
+    jobs, _, _ = extract.extract_jobs(GH_NEW_TAG, 'https://job-boards.greenhouse.io/theta')
+    assert [j['title'] for j in jobs] == ['Lead Software Engineer']
+    assert extract.declared_total(GH_NEW_TAG) == 1
+
+
+def test_smartrecruiters_board():
+    jobs, strategy, company = extract.extract_jobs(SMARTRECRUITERS, 'https://careers.smartrecruiters.com/Iota')
+    assert strategy == 'SmartRecruiters job board' and company == 'Iota'
+    assert [(j['title'], j['location'], j['employment_type'], j['url']) for j in jobs] == [
+        ('SDE II', 'Chennai, India', 'Full-time · Hybrid', 'https://jobs.smartrecruiters.com/Iota/7440001-sde-ii'),
+        ('Analyst', 'Chennai, India', 'Full-time', 'https://jobs.smartrecruiters.com/Iota/7440002-analyst')]
+
+
+def test_confirmed_empty_only_on_explicit_signals():
+    assert extract.extract_jobs(LEVER_EMPTY, 'https://jobs.lever.co/kappa')[0] == []
+    assert 'No job postings currently open' in extract.confirmed_empty(LEVER_EMPTY)
+    assert extract.confirmed_empty('<h2 data-testid="job-count-header">0 jobs</h2>') == 'The Greenhouse board states "0 jobs"'
+    demo_empty = "<body><h2>Open positions</h2><ul id='job-list'></ul><p class='no-openings'>No open positions right now.</p></body>"
+    assert extract.confirmed_empty(demo_empty, ['#job-list'])
+    # A bot check, a redesign or a missing list is a failed read, not an empty board
+    assert extract.confirmed_empty('<body><h1>Checking your browser</h1><p>Please verify you are a human</p></body>', ['#job-list']) is None
+    assert extract.confirmed_empty("<body><ul id='job-list'></ul></body>", ['#job-list']) is None
+    assert extract.confirmed_empty('<body><footer>No jobs? Follow us</footer><main></main></body>') is None   # no selector, no platform
+
+
+def test_confirmed_empty_board_removes_small_lists_but_big_drops_need_two_checks():
+    s = tracker.empty_state()
+    run(s, [J('A'), J('B')], 1000)
+    e = run(s, [], 2000, found=0)
+    assert [x['title'] for x in e['removed']] == ['A', 'B'] and tracker.summary(s, 2000)['active'] == 0
+    s = tracker.empty_state()
+    run(s, [J(f'Job {i}') for i in range(15)], 1000)
+    with pytest.raises(tracker.SuspiciousDrop):
+        run(s, [], 2000, found=0)
+    assert len(run(s, [], 3000, found=0)['removed']) == 15
